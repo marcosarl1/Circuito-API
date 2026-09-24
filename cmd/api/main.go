@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,43 +15,52 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", handler.Health)
+	appConfig, err := config.Load()
+	if err != nil {
+		slog.Error("configuration load failed", "err", err)
+		os.Exit(1)
+	}
+	router := http.NewServeMux()
+	router.HandleFunc("GET /health", handler.Health)
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	appContext, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 
-	store, err := repository.Connect(ctx, cfg)
+	store, err := repository.Connect(appContext, appConfig)
 	if err != nil {
 		slog.Warn("mongo unavailable at boot", "err", err)
 		store = nil
-	} else if err := store.EnsureIndexes(ctx); err != nil {
+	} else if err := store.EnsureIndexes(appContext); err != nil {
 		slog.Warn("indexes failed", "err", err)
 	}
-	mux.HandleFunc("GET /ready", handler.Ready(store))
+	router.HandleFunc("GET /ready", handler.Ready(store))
 
-	mux.HandleFunc("GET /api/v1/eventos", handler.ListEvents(store))
-	mux.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(store))
+	router.HandleFunc("GET /api/v1/eventos", handler.ListEvents(store))
+	router.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(store))
 
-	srv := &http.Server{
-		Addr:         ":" + cfg.Port,
-		Handler:      mux,
+	requireAPIKey := handler.RequireAPIKey(appConfig.APIKey)
+	router.HandleFunc("POST /api/v1/eventos", requireAPIKey(handler.CreateEvent(store, func(requestContext context.Context) (string, error) {
+		return store.NextEventID(requestContext, time.Now())
+	})))
+
+	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(store)))
+
+	server := &http.Server{
+		Addr:         ":" + appConfig.Port,
+		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 	go func() {
-		slog.Info("listening", "port", cfg.Port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		slog.Info("listening", "port", appConfig.Port)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("serve failed", "err", err)
 			os.Exit(1)
 		}
 	}()
-	<-ctx.Done()
-	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	<-appContext.Done()
+	shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutCtx)
-
-	fmt.Printf("port=%s db=%s coll=%s\n", cfg.Port, cfg.MongoDB, cfg.MongoCollection)
+	_ = server.Shutdown(shutdownContext)
 }

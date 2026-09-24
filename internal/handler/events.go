@@ -1,43 +1,91 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/marcosarl1/Circuito-API/internal/repository"
+	"github.com/marcosarl1/Circuito-API/internal/service"
 )
 
 func ListEvents(store *repository.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_ = json.NewEncoder(w).Encode(map[string]string{"detail": "Banco de dados indisponível"})
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
 			return
 		}
-		q := r.URL.Query()
-		page, _ := strconv.ParseInt(q.Get("page"), 10, 64)
-		size, _ := strconv.ParseInt(q.Get("size"), 10, 64)
-		items, total, err := store.ListEvents(r.Context(), page, size, q.Get("estado"), q.Get("q"))
+		query := request.URL.Query()
+		page, _ := strconv.ParseInt(query.Get("page"), 10, 64)
+		size, _ := strconv.ParseInt(query.Get("size"), 10, 64)
+		eventos, total, err := store.ListEvents(request.Context(), page, size, query.Get("estado"), query.Get("q"))
 		if err != nil {
-			http.Error(w, `{"detail":"erro interno"}`, http.StatusInternalServerError)
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"eventos": items, "total": total})
+		writeJSON(writer, http.StatusOK, map[string]any{"eventos": eventos, "total": total})
 	}
 }
 
 func GetEvent(store *repository.Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id := r.PathValue("id")
-		e, err := store.FindEvent(r.Context(), id)
-		if err != nil {
-			http.Error(w, `{"detail":"Evento não encontrado"}`, http.StatusNotFound)
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if store == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(e)
+		eventID := request.PathValue("id")
+		evento, err := store.FindEvent(request.Context(), eventID)
+		if err != nil {
+			writeError(writer, http.StatusNotFound, "Evento não encontrado")
+			return
+		}
+		writeJSON(writer, http.StatusOK, evento)
+	}
+}
+
+func CreateEvent(store *repository.Store, nextID func(context.Context) (string, error)) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if store == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		var newEvent service.Event
+		if err := json.NewDecoder(request.Body).Decode(&newEvent); err != nil {
+			writeError(writer, http.StatusBadRequest, "Corpo inválido")
+			return
+		}
+		eventID, err := nextID(request.Context())
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		newEvent.ID = eventID
+		createdEvent, err := store.CreateEvent(request.Context(), newEvent)
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		writeJSON(writer, http.StatusCreated, createdEvent)
+	}
+}
+
+func DeleteEvent(store *repository.Store) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if store == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		eventID := request.PathValue("id")
+		deleted, err := store.DeleteEvent(request.Context(), eventID)
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		if !deleted {
+			writeError(writer, http.StatusNotFound, "Evento não encontrado")
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
 	}
 }

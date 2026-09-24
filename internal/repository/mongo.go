@@ -19,29 +19,29 @@ type Store struct {
 	Counters   *mongo.Collection
 }
 
-func Connect(ctx context.Context, cfg config.Config) (*Store, error) {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+func Connect(requestContext context.Context, appConfig config.Config) (*Store, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(options.Client().ApplyURI(cfg.MongoURI))
+	client, err := mongo.Connect(options.Client().ApplyURI(appConfig.MongoURI))
 	if err != nil {
 		return nil, err
 	}
-	if err := client.Ping(ctx, nil); err != nil {
+	if err := client.Ping(requestContext, nil); err != nil {
 		return nil, err
 	}
-	db := client.Database(cfg.MongoDB)
+	database := client.Database(appConfig.MongoDB)
 	return &Store{
 		Client:     client,
-		DB:         db,
-		Collection: db.Collection(cfg.MongoCollection),
-		Counters:   db.Collection("counters"),
+		DB:         database,
+		Collection: database.Collection(appConfig.MongoCollection),
+		Counters:   database.Collection("counters"),
 	}, nil
 }
 
-func (s *Store) EnsureIndexes(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+func (store *Store) EnsureIndexes(requestContext context.Context) error {
+	requestContext, cancel := context.WithTimeout(requestContext, 30*time.Second)
 	defer cancel()
-	_, err := s.Collection.Indexes().CreateMany(ctx, []mongo.IndexModel{
+	_, err := store.Collection.Indexes().CreateMany(requestContext, []mongo.IndexModel{
 		{Keys: bson.D{{Key: "datas_realizacao", Value: -1}}},
 		{Keys: bson.D{{Key: "estado", Value: 1}, {Key: "datas_realizacao", Value: -1}}},
 		{Keys: bson.D{{Key: "nome_evento", Value: 1}}},
@@ -50,21 +50,21 @@ func (s *Store) EnsureIndexes(ctx context.Context) error {
 	return err
 }
 
-func (s *Store) NextEventID(ctx context.Context, now time.Time) (string, error) {
+func (store *Store) NextEventID(requestContext context.Context, now time.Time) (string, error) {
 	prefix := service.EventPrefix(now)
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
-	var res struct {
+	var counterResult struct {
 		Seq int64 `bson:"seq"`
 	}
-	err := s.Counters.FindOneAndUpdate(
-		ctx,
+	err := store.Counters.FindOneAndUpdate(
+		requestContext,
 		bson.M{"_id": prefix},
 		bson.M{"$inc": bson.M{"seq": 1}},
 		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
-	).Decode(&res)
+	).Decode(&counterResult)
 	if err != nil {
 		return "", fmt.Errorf("counter: %w", err)
 	}
-	return service.BuildEventID(prefix, res.Seq)
+	return service.BuildEventID(prefix, counterResult.Seq)
 }

@@ -10,21 +10,21 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func (s *Store) ListEvents(ctx context.Context, page, size int64, estado, q string) ([]service.Evento, int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+func (store *Store) ListEvents(requestContext context.Context, page, size int64, estado, search string) ([]service.Event, int64, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
 	filter := bson.M{}
 	if estado != "" {
 		filter["estado"] = estado
 	}
-	if q != "" {
-		rx := regexp.QuoteMeta(q)
+	if search != "" {
+		escapedSearch := regexp.QuoteMeta(search)
 		filter["$or"] = []bson.M{
-			{"nome_evento": bson.M{"$regex": rx, "$options": "i"}},
-			{"cidade": bson.M{"$regex": rx, "$options": "i"}},
+			{"nome_evento": bson.M{"$regex": escapedSearch, "$options": "i"}},
+			{"cidade": bson.M{"$regex": escapedSearch, "$options": "i"}},
 		}
 	}
-	total, err := s.Collection.CountDocuments(ctx, filter)
+	total, err := store.Collection.CountDocuments(requestContext, filter)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -34,28 +34,51 @@ func (s *Store) ListEvents(ctx context.Context, page, size int64, estado, q stri
 	if size < 1 || size > 100 {
 		size = 20
 	}
-	cur, err := s.Collection.Find(ctx, filter, options.Find().SetSort(bson.D{{Key: "datas_realizacao", Value: -1}}).SetSkip((page-1)*size).SetLimit(size))
+	cursor, err := store.Collection.Find(requestContext, filter, options.Find().SetSort(bson.D{{Key: "datas_realizacao", Value: -1}}).SetSkip((page-1)*size).SetLimit(size))
 	if err != nil {
 		return nil, 0, err
 	}
-	defer cur.Close(ctx)
-	var out []service.Evento
-	if err := cur.All(ctx, &out); err != nil {
+	defer cursor.Close(requestContext)
+	var eventos []service.Event
+	if err := cursor.All(requestContext, &eventos); err != nil {
 		return nil, 0, err
 	}
-	return out, total, nil
+	return eventos, total, nil
 }
 
-func (s *Store) FindEvent(ctx context.Context, id string) (*service.Evento, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+func (store *Store) FindEvent(requestContext context.Context, eventID string) (*service.Event, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
-	nid, err := service.NormalizeEventID(id)
+	normalizedID, err := service.NormalizeEventID(eventID)
 	if err != nil {
 		return nil, err
 	}
-	var e service.Evento
-	if err := s.Collection.FindOne(ctx, bson.M{"_id": nid}).Decode(&e); err != nil {
+	var evento service.Event
+	if err := store.Collection.FindOne(requestContext, bson.M{"_id": normalizedID}).Decode(&evento); err != nil {
 		return nil, err
 	}
-	return &e, nil
+	return &evento, nil
+}
+
+func (store *Store) CreateEvent(requestContext context.Context, newEvent service.Event) (*service.Event, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	if _, err := store.Collection.InsertOne(requestContext, newEvent); err != nil {
+		return nil, err
+	}
+	return &newEvent, nil
+}
+
+func (store *Store) DeleteEvent(requestContext context.Context, eventID string) (bool, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	normalizedID, err := service.NormalizeEventID(eventID)
+	if err != nil {
+		return false, err
+	}
+	deleteResult, err := store.Collection.DeleteOne(requestContext, bson.M{"_id": normalizedID})
+	if err != nil {
+		return false, err
+	}
+	return deleteResult.DeletedCount == 1, nil
 }
