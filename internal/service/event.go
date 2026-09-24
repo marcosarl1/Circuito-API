@@ -11,6 +11,13 @@ type Event struct {
 	DatasRealizacao []time.Time `bson:"datas_realizacao" json:"-"`
 }
 
+type UpdateEventRequest struct {
+	NomeEvento     *string `json:"nome_evento"`
+	Cidade         *string `json:"cidade"`
+	Estado         *string `json:"estado"`
+	DataRealizacao *string `json:"data_realizacao"`
+}
+
 type Page struct {
 	Eventos    []Event `json:"eventos"`
 	Total      int64   `json:"total"`

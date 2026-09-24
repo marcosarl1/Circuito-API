@@ -70,6 +70,51 @@ func CreateEvent(store *repository.Store, nextID func(context.Context) (string, 
 	}
 }
 
+func UpdateEvent(store *repository.Store) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if store == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+
+		var updateRequest service.UpdateEventRequest
+		if err := json.NewDecoder(request.Body).Decode(&updateRequest); err != nil {
+			writeError(writer, http.StatusBadRequest, "Body inválido")
+			return
+		}
+
+		updates := make(map[string]any)
+
+		if updateRequest.NomeEvento != nil {
+			updates["nome_evento"] = *updateRequest.NomeEvento
+		}
+		if updateRequest.Cidade != nil {
+			updates["cidade"] = *updateRequest.Cidade
+		}
+		if updateRequest.Estado != nil {
+			updates["estado"] = *updateRequest.Estado
+		}
+		if updateRequest.DataRealizacao != nil {
+			updates["data_realizacao"] = *updateRequest.DataRealizacao
+		}
+
+		if len(updates) == 0 {
+			writeError(writer, http.StatusBadRequest, "Nenhum campo para atualizar")
+			return
+		}
+
+		eventID := request.PathValue("id")
+
+		updatedEvent, err := store.UpdateEvent(request.Context(), eventID, updates)
+		if err != nil {
+			writeError(writer, http.StatusNotFound, "Evento não encontrado")
+			return
+		}
+
+		writeJSON(writer, http.StatusOK, updatedEvent)
+	}
+}
+
 func DeleteEvent(store *repository.Store) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {

@@ -43,6 +43,8 @@ func main() {
 		return store.NextEventID(requestContext, time.Now())
 	})))
 
+	router.HandleFunc("PATCH /api/v1/eventos/{id}", requireAPIKey(handler.UpdateEvent(store)))
+
 	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(store)))
 
 	server := &http.Server{

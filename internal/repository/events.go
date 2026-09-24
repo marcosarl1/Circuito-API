@@ -69,6 +69,34 @@ func (store *Store) CreateEvent(requestContext context.Context, newEvent service
 	return &newEvent, nil
 }
 
+func (store *Store) UpdateEvent(requestContext context.Context, eventID string, updates map[string]any) (*service.Event, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+
+	normalizedID, err := service.NormalizeEventID(eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	updateDocument := bson.M{"$set": updates}
+
+	updateOptions := options.FindOneAndUpdate().SetReturnDocument(options.After)
+
+	var updatedEvent service.Event
+
+	err = store.Collection.FindOneAndUpdate(
+		requestContext,
+		bson.M{"_id": normalizedID},
+		updateDocument,
+		updateOptions).Decode(&updatedEvent)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &updatedEvent, nil
+}
+
 func (store *Store) DeleteEvent(requestContext context.Context, eventID string) (bool, error) {
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
