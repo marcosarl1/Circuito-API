@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -107,7 +108,11 @@ func UpdateEvent(store *repository.Store) http.HandlerFunc {
 
 		updatedEvent, err := store.UpdateEvent(request.Context(), eventID, updates)
 		if err != nil {
-			writeError(writer, http.StatusNotFound, "Evento não encontrado")
+			if errors.Is(err, repository.ErrEventNotFound) {
+				writeError(writer, http.StatusNotFound, "Evento não encontrado")
+				return
+			}
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
 

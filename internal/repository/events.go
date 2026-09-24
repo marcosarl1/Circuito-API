@@ -2,13 +2,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"time"
 
 	"github.com/marcosarl1/Circuito-API/internal/service"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
+
+var ErrEventNotFound = errors.New("event not found")
 
 func (store *Store) ListEvents(requestContext context.Context, page, size int64, estado, search string) ([]service.Event, int64, error) {
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
@@ -89,6 +93,10 @@ func (store *Store) UpdateEvent(requestContext context.Context, eventID string, 
 		bson.M{"_id": normalizedID},
 		updateDocument,
 		updateOptions).Decode(&updatedEvent)
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrEventNotFound
+	}
 
 	if err != nil {
 		return nil, err
