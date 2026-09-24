@@ -32,6 +32,9 @@ func main() {
 	}
 	mux.HandleFunc("GET /ready", handler.Ready(store))
 
+	mux.HandleFunc("GET /api/v1/eventos", handler.ListEvents(store))
+	mux.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(store))
+
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      mux,
