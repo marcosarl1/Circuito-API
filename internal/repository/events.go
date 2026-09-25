@@ -58,9 +58,16 @@ func (store *Store) FindEvent(requestContext context.Context, eventID string) (*
 		return nil, err
 	}
 	var evento service.Event
-	if err := store.Collection.FindOne(requestContext, bson.M{"_id": normalizedID}).Decode(&evento); err != nil {
+	err = store.Collection.FindOne(requestContext, bson.M{"_id": normalizedID}).Decode(&evento)
+
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ErrEventNotFound
+	}
+
+	if err != nil {
 		return nil, err
 	}
+
 	return &evento, nil
 }
 

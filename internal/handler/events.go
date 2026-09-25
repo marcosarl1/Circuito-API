@@ -38,7 +38,11 @@ func GetEvent(store *repository.Store) http.HandlerFunc {
 		eventID := request.PathValue("id")
 		evento, err := store.FindEvent(request.Context(), eventID)
 		if err != nil {
-			writeError(writer, http.StatusNotFound, "Evento não encontrado")
+			if errors.Is(err, repository.ErrEventNotFound) {
+				writeError(writer, http.StatusNotFound, "Evento não encontrado")
+				return
+			}
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
 		writeJSON(writer, http.StatusOK, evento)
