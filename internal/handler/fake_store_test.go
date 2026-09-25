@@ -24,7 +24,13 @@ func (store *fakeEventStore) ListEvents(
 	estado string,
 	search string,
 ) ([]service.Event, int64, error) {
-	return []service.Event{}, int64(len(store.events)), nil
+	eventos := make([]service.Event, 0, len(store.events))
+
+	for _, evento := range store.events {
+		eventos = append(eventos, evento)
+	}
+
+	return eventos, int64(len(eventos)), nil
 }
 
 func (store *fakeEventStore) FindEvent(

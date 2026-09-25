@@ -270,3 +270,100 @@ func TestDeleteEventReturnsNoContent(t *testing.T) {
 		t.Fatal("expected evento to be deleted")
 	}
 }
+
+func TestEventIDCanBeUsedAcrossLifecycle(t *testing.T) {
+	store := newFakeEventStore()
+
+	nextID := func(requestContext context.Context) (string, error) {
+		return "2026090001", nil
+	}
+
+	createRequest := newTestRequest(http.MethodPost, "/api/v1/eventos",
+		`{
+			"nome_evento": "Corrida teste",
+			"cidade": "Cidade teste",
+			"estado": "PB"
+		}`)
+
+	createRecorder := httptest.NewRecorder()
+	CreateEvent(store, nextID)(createRecorder, createRequest)
+
+	if createRecorder.Code != http.StatusCreated {
+		t.Fatalf("create: expected status %d, got %d; body=%s", http.StatusCreated, createRecorder.Code, createRecorder.Body.String())
+	}
+
+	var createdEvent service.Event
+	if err := json.NewDecoder(createRecorder.Body).Decode(&createdEvent); err != nil {
+		t.Fatalf("create: could not decode response: %v", err)
+	}
+
+	if createdEvent.ID != "2026090001" {
+		t.Fatalf("create: expected id 2026090001, got %q", createdEvent.ID)
+	}
+
+	listRequest := newTestRequest(http.MethodGet, "/api/v1/eventos?page=1&size=20", "")
+	listRecorder := httptest.NewRecorder()
+
+	ListEvents(store)(listRecorder, listRequest)
+
+	if listRecorder.Code != http.StatusOK {
+		t.Fatalf("list: expected status %d, got %d; body=%s", http.StatusOK, listRecorder.Code, listRecorder.Body.String())
+	}
+
+	var page service.Page
+	if err := json.NewDecoder(listRecorder.Body).Decode(&page); err != nil {
+		t.Fatalf("list: could not decode response: %v", err)
+	}
+
+	if len(page.Eventos) != 1 {
+		t.Fatalf("list: expected 1 event, got %d", len(page.Eventos))
+	}
+
+	listedID := page.Eventos[0].ID
+	if listedID != createdEvent.ID {
+		t.Fatalf("list: id mismatch: created %q listed=%q", createdEvent.ID, listedID)
+	}
+
+	getRequest := newTestRequest(http.MethodGet, "/api/v1/eventos/"+listedID, "")
+	getRequest.SetPathValue("id", listedID)
+	getRecorder := httptest.NewRecorder()
+
+	GetEvent(store)(getRecorder, getRequest)
+
+	if getRecorder.Code != http.StatusOK {
+		t.Fatalf("get: expected status %d, got %d; body=%s", http.StatusOK, getRecorder.Code, getRecorder.Body.String())
+	}
+
+	updateRequest := newTestRequest(http.MethodPatch, "/api/v1/eventos/"+listedID,
+		`{
+			"cidade": "Campina Grande"
+		}`)
+	updateRequest.SetPathValue("id", listedID)
+	updateRecorder := httptest.NewRecorder()
+
+	UpdateEvent(store)(updateRecorder, updateRequest)
+
+	if updateRecorder.Code != http.StatusOK {
+		t.Fatalf("update: expected status %d, got %d; body=%s", http.StatusOK, updateRecorder.Code, updateRecorder.Body.String())
+	}
+
+	deleteRequest := newTestRequest(http.MethodDelete, "/api/v1/eventos/"+listedID, "")
+	deleteRequest.SetPathValue("id", listedID)
+	deleteRecorder := httptest.NewRecorder()
+
+	DeleteEvent(store)(deleteRecorder, deleteRequest)
+
+	if deleteRecorder.Code != http.StatusNoContent {
+		t.Fatalf("delete: expected status %d, got %d; body=%s", http.StatusNoContent, deleteRecorder.Code, deleteRecorder.Body.String())
+	}
+
+	finalGetRequest := newTestRequest(http.MethodGet, "/api/v1/eventos"+listedID, "")
+	finalGetRequest.SetPathValue("id", listedID)
+	finalGetRecorder := httptest.NewRecorder()
+
+	GetEvent(store)(finalGetRecorder, finalGetRequest)
+
+	if finalGetRecorder.Code != http.StatusNotFound {
+		t.Fatalf("final get: expected status %d, got %d; body=%s", http.StatusNotFound, finalGetRecorder.Code, finalGetRecorder.Body.String())
+	}
+}
