@@ -11,6 +11,7 @@ import (
 
 	"github.com/marcosarl1/Circuito-API/internal/config"
 	"github.com/marcosarl1/Circuito-API/internal/handler"
+	"github.com/marcosarl1/Circuito-API/internal/middleware"
 	"github.com/marcosarl1/Circuito-API/internal/repository"
 )
 
@@ -53,7 +54,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + appConfig.Port,
-		Handler:      router,
+		Handler:      middleware.RequestID(router),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
