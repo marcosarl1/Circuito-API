@@ -11,7 +11,7 @@ import (
 	"github.com/marcosarl1/Circuito-API/internal/service"
 )
 
-func ListEvents(store *repository.Store) http.HandlerFunc {
+func ListEvents(store EventStore) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
@@ -54,7 +54,7 @@ func ListEvents(store *repository.Store) http.HandlerFunc {
 	}
 }
 
-func GetEvent(store *repository.Store) http.HandlerFunc {
+func GetEvent(store EventStore) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
@@ -74,7 +74,7 @@ func GetEvent(store *repository.Store) http.HandlerFunc {
 	}
 }
 
-func CreateEvent(store *repository.Store, nextID func(context.Context) (string, error)) http.HandlerFunc {
+func CreateEvent(store EventStore, nextID func(context.Context) (string, error)) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
@@ -100,7 +100,7 @@ func CreateEvent(store *repository.Store, nextID func(context.Context) (string, 
 	}
 }
 
-func UpdateEvent(store *repository.Store) http.HandlerFunc {
+func UpdateEvent(store EventStore) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
@@ -149,7 +149,7 @@ func UpdateEvent(store *repository.Store) http.HandlerFunc {
 	}
 }
 
-func DeleteEvent(store *repository.Store) http.HandlerFunc {
+func DeleteEvent(store EventStore) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		if store == nil {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")

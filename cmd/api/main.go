@@ -33,19 +33,23 @@ func main() {
 	} else if err := store.EnsureIndexes(appContext); err != nil {
 		slog.Warn("indexes failed", "err", err)
 	}
+	var eventStore handler.EventStore
+	if store != nil {
+		eventStore = store
+	}
 	router.HandleFunc("GET /ready", handler.Ready(store))
 
-	router.HandleFunc("GET /api/v1/eventos", handler.ListEvents(store))
-	router.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(store))
+	router.HandleFunc("GET /api/v1/eventos", handler.ListEvents(eventStore))
+	router.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(eventStore))
 
 	requireAPIKey := handler.RequireAPIKey(appConfig.APIKey)
-	router.HandleFunc("POST /api/v1/eventos", requireAPIKey(handler.CreateEvent(store, func(requestContext context.Context) (string, error) {
+	router.HandleFunc("POST /api/v1/eventos", requireAPIKey(handler.CreateEvent(eventStore, func(requestContext context.Context) (string, error) {
 		return store.NextEventID(requestContext, time.Now())
 	})))
 
-	router.HandleFunc("PATCH /api/v1/eventos/{id}", requireAPIKey(handler.UpdateEvent(store)))
+	router.HandleFunc("PATCH /api/v1/eventos/{id}", requireAPIKey(handler.UpdateEvent(eventStore)))
 
-	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(store)))
+	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(eventStore)))
 
 	server := &http.Server{
 		Addr:         ":" + appConfig.Port,
