@@ -54,7 +54,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:         ":" + appConfig.Port,
-		Handler:      middleware.RequestID(router),
+		Handler:      middleware.RequestID(middleware.CORS(appConfig.CorsOrigin)(router)),
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
