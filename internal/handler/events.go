@@ -18,14 +18,39 @@ func ListEvents(store *repository.Store) http.HandlerFunc {
 			return
 		}
 		query := request.URL.Query()
-		page, _ := strconv.ParseInt(query.Get("page"), 10, 64)
-		size, _ := strconv.ParseInt(query.Get("size"), 10, 64)
+		page := int64(1)
+		if parsedPage, err := strconv.ParseInt(query.Get("page"), 10, 64); err == nil && parsedPage >= 1 {
+			page = parsedPage
+		}
+		size := int64(20)
+		if parsedSize, err := strconv.ParseInt(query.Get("size"), 10, 64); err == nil && parsedSize >= 1 && parsedSize <= 100 {
+			size = parsedSize
+		}
 		eventos, total, err := store.ListEvents(request.Context(), page, size, query.Get("estado"), query.Get("q"))
 		if err != nil {
 			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
-		writeJSON(writer, http.StatusOK, map[string]any{"eventos": eventos, "total": total})
+		if eventos == nil {
+			eventos = []service.Event{}
+		}
+
+		totalPages := int64(0)
+		if total > 0 {
+			totalPages = (total + size - 1) / size
+		}
+
+		response := service.Page{
+			Eventos:    eventos,
+			Total:      total,
+			TotalPages: totalPages,
+			Page:       page,
+			Size:       size,
+			HasNext:    page < totalPages,
+			HasPrev:    page > 1,
+		}
+
+		writeJSON(writer, http.StatusOK, response)
 	}
 }
 
