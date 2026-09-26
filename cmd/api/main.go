@@ -15,6 +15,8 @@ import (
 	"github.com/marcosarl1/Circuito-API/internal/repository"
 )
 
+const mongoShutdownTimeout = 5 * time.Second
+
 func main() {
 	appConfig, err := config.Load()
 	if err != nil {
@@ -67,7 +69,19 @@ func main() {
 		}
 	}()
 	<-appContext.Done()
-	shutdownContext, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	_ = server.Shutdown(shutdownContext)
+	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
+
+	if err := server.Shutdown(shutdownContext); err != nil {
+		slog.Error("server shutdown failed", "err", err)
+	}
+
+	if store != nil {
+		mongoContext, cancelMongo := context.WithTimeout(context.Background(), mongoShutdownTimeout)
+		defer cancelMongo()
+
+		if err := store.Disconnect(mongoContext); err != nil {
+			slog.Error("mongo disconnect failed", "err", err)
+		}
+	}
 }

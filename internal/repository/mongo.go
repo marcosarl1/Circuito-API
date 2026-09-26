@@ -50,6 +50,13 @@ func (store *Store) EnsureIndexes(requestContext context.Context) error {
 	return err
 }
 
+func (store *Store) Disconnect(requestContext context.Context) error {
+	if store == nil || store.Client == nil {
+		return nil
+	}
+	return store.Client.Disconnect(requestContext)
+}
+
 func (store *Store) NextEventID(requestContext context.Context, now time.Time) (string, error) {
 	prefix := service.EventPrefix(now)
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
