@@ -47,6 +47,9 @@ func (store *Store) ListEvents(requestContext context.Context, page, size int64,
 	if err := cursor.All(requestContext, &eventos); err != nil {
 		return nil, 0, err
 	}
+	for index := range eventos {
+		eventos[index].Normalize()
+	}
 	return eventos, total, nil
 }
 
@@ -63,10 +66,11 @@ func (store *Store) FindEvent(requestContext context.Context, eventID string) (*
 	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, ErrEventNotFound
 	}
-
 	if err != nil {
 		return nil, err
 	}
+
+	evento.Normalize()
 
 	return &evento, nil
 }
@@ -74,6 +78,7 @@ func (store *Store) FindEvent(requestContext context.Context, eventID string) (*
 func (store *Store) CreateEvent(requestContext context.Context, newEvent service.Event) (*service.Event, error) {
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
+	newEvent.Normalize()
 	if _, err := store.Collection.InsertOne(requestContext, newEvent); err != nil {
 		return nil, err
 	}
@@ -108,6 +113,8 @@ func (store *Store) UpdateEvent(requestContext context.Context, eventID string, 
 	if err != nil {
 		return nil, err
 	}
+
+	updatedEvent.Normalize()
 
 	return &updatedEvent, nil
 }
