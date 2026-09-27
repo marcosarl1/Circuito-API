@@ -26,9 +26,14 @@ func getenv(key, def string) string {
 }
 
 func Load() (Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return Config{}, fmt.Errorf("could not load .env: %w", err)
+	if _, statErr := os.Stat(".env"); statErr == nil {
+		if err := godotenv.Load(); err != nil {
+			return Config{}, fmt.Errorf("could not load .env %w", err)
+		}
+	} else if !os.IsNotExist(statErr) {
+		return Config{}, fmt.Errorf("could not access .env: %w", statErr)
 	}
+
 	port := os.Getenv("API_PORT")
 	if _, err := strconv.Atoi(port); err != nil || port == "" {
 		port = "8181"
