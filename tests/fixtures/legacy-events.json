@@ -1,0 +1,26 @@
+[
+  {
+    "id": "2025010012",
+    "nome_evento": "Evento legado com ID em string",
+    "cidade": "João Pessoa",
+    "estado": "PB",
+    "organizador": "Organização Legada",
+    "data_realizacao": "12 de Janeiro de 2025",
+    "datas_realizacao": [
+      "2025-01-12T00:00:00Z"
+    ],
+    "distancias": [
+      "5 KM"
+    ],
+    "precos_entries": [
+      "R$ 80,00"
+    ]
+  },
+  {
+    "id": "2099010001",
+    "nome_evento": "Evento legado com campos reduzidos",
+    "cidade": "Rio de Janeiro",
+    "estado": "RJ",
+    "data_realizacao": "01 de Janeiro de 2099"
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "2026090001",
+    "nome_evento": "Corrida de Teste",
+    "cidade": "João Pessoa",
+    "estado": "PB",
+    "organizador": "Organização de Teste",
+    "site_coleta": "manual",
+    "data_realizacao": "24 de Setembro de 2026",
+    "datas_realizacao": [
+      "2026-09-24T00:00:00Z"
+    ],
+    "distancias": [
+      "5 KM",
+      "10 KM"
+    ],
+    "horario": "07:00",
+    "url_inscricao": "https://example.com/inscricao",
+    "url_imagem": "https://example.com/imagem.jpg",
+    "link_edital": "https://example.com/edital.pdf",
+    "precos_entries": [
+      "Lote 1 - R$ 120,00"
+    ],
+    "patrocinado": false,
+    "percurso": {
+      "local_largada": "Praça Central",
+      "trajeto": "Avenida Principal"
+    },
+    "kits": [],
+    "campos_protegidos": []
+  }
+]
