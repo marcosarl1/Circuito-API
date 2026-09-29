@@ -46,7 +46,7 @@ func (request UpdateEventRequest) ToUpdates() (map[string]any, error) {
 		updates["link_edital"] = *request.LinkEdital
 	}
 	if request.Categorias != nil {
-		updates["categorias"] = *&request.Categorias
+		updates["categorias"] = *request.Categorias
 	}
 	if request.CategoriasPrem != nil {
 		updates["categorias_premiadas"] = *request.CategoriasPrem
