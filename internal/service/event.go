@@ -44,9 +44,9 @@ type Event struct {
 }
 
 func (event *Event) Normalize() {
-	if event.Distancias == nil {
-		event.Distancias = []string{}
-	}
+	event.Distancias = normalizeDistancias(event.Distancias)
+	event.PrecosEntries = parsePrecosEntries(event.PrecosEntries)
+
 	if event.Categorias == nil {
 		event.Categorias = []string{}
 	}
