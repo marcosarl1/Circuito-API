@@ -72,14 +72,43 @@ func (store *fakeEventStore) UpdateEvent(
 		return nil, repository.ErrEventNotFound
 	}
 
-	if nomeEvento, exists := updates["nome_evento"].(string); exists {
+	if nomeEvento, ok := updates["nome_evento"].(string); ok {
 		event.NomeEvento = nomeEvento
 	}
 
-	if cidade, exists := updates["cidade"].(string); exists {
+	if cidade, ok := updates["cidade"].(string); ok {
 		event.Cidade = cidade
 	}
 
+	if estado, ok := updates["estado"].(string); ok {
+		event.Estado = estado
+	}
+
+	if organizador, ok := updates["organizador"].(string); ok {
+		event.Organizador = organizador
+	}
+
+	if siteColeta, ok := updates["site_coleta"].(string); ok {
+		event.SiteColeta = siteColeta
+	}
+
+	if dataRealizacao, ok := updates["data_realizacao"].(string); ok {
+		event.DataRealizacao = dataRealizacao
+	}
+
+	if distancias, ok := updates["distancias"].([]string); ok {
+		event.Distancias = distancias
+	}
+
+	if horario, ok := updates["horario"].(string); ok {
+		event.Horario = &horario
+	}
+
+	if patrocinado, ok := updates["patrocinado"].(bool); ok {
+		event.Patrocinado = patrocinado
+	}
+
+	event.Normalize()
 	store.events[normalizedID] = event
 
 	return &event, nil

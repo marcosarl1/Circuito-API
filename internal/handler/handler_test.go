@@ -367,3 +367,46 @@ func TestEventIDCanBeUsedAcrossLifecycle(t *testing.T) {
 		t.Fatalf("final get: expected status %d, got %d; body=%s", http.StatusNotFound, finalGetRecorder.Code, finalGetRecorder.Body.String())
 	}
 }
+
+func TestUpdateEventRejectsInvalidHorario(t *testing.T) {
+	store := newFakeEventStore()
+	store.events["2026090001"] = service.Event{
+		ID: "2026090001",
+	}
+	request := newTestRequest(http.MethodPatch, "/api/v1/eventos/2026090001", `{"horario": "7:30"}`)
+	request.SetPathValue("id", "2026090001")
+
+	recorder := httptest.NewRecorder()
+
+	UpdateEvent(store)(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d; boyd=%s", http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestUpdateEventUpdatesExtendFields(t *testing.T) {
+	store := newFakeEventStore()
+	store.events["2026090001"] = service.Event{
+		ID:         "2026090001",
+		NomeEvento: "Evento",
+	}
+
+	request := newTestRequest(http.MethodPatch, "/api/v1/eventos/2026090001",
+		`{
+			"organizador": "Nova organização",
+			"distancias": ["5 KM", "10 KM"],
+			"horario": "07:30",
+			"patrocinado": true
+		}`)
+
+	request.SetPathValue("id", "2026090001")
+
+	recorder := httptest.NewRecorder()
+
+	UpdateEvent(store)(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, recorder.Code, recorder.Body.String())
+	}
+}

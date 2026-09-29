@@ -109,23 +109,13 @@ func UpdateEvent(store EventStore) http.HandlerFunc {
 
 		var updateRequest service.UpdateEventRequest
 		if err := json.NewDecoder(request.Body).Decode(&updateRequest); err != nil {
-			writeError(writer, http.StatusBadRequest, "Body inválido")
+			writeError(writer, http.StatusBadRequest, "Corpo inválido")
+		}
+
+		updates, err := updateRequest.ToUpdates()
+		if err != nil {
+			writeError(writer, http.StatusBadRequest, err.Error())
 			return
-		}
-
-		updates := make(map[string]any)
-
-		if updateRequest.NomeEvento != nil {
-			updates["nome_evento"] = *updateRequest.NomeEvento
-		}
-		if updateRequest.Cidade != nil {
-			updates["cidade"] = *updateRequest.Cidade
-		}
-		if updateRequest.Estado != nil {
-			updates["estado"] = *updateRequest.Estado
-		}
-		if updateRequest.DataRealizacao != nil {
-			updates["data_realizacao"] = *updateRequest.DataRealizacao
 		}
 
 		if len(updates) == 0 {
