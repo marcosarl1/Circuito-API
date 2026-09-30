@@ -13,6 +13,7 @@ import (
 	"github.com/marcosarl1/Circuito-API/internal/handler"
 	"github.com/marcosarl1/Circuito-API/internal/middleware"
 	"github.com/marcosarl1/Circuito-API/internal/repository"
+	"github.com/marcosarl1/Circuito-API/internal/service"
 )
 
 const mongoShutdownTimeout = 5 * time.Second
@@ -37,8 +38,10 @@ func main() {
 		slog.Warn("indexes failed", "err", err)
 	}
 	var eventStore handler.EventStore
+	var jobStore handler.JobStore
 	if store != nil {
 		eventStore = store
+		jobStore = store
 	}
 	router.HandleFunc("GET /ready", handler.Ready(store))
 
@@ -54,6 +57,13 @@ func main() {
 	router.HandleFunc("PATCH /api/v1/eventos/{id}", requireAPIKey(handler.UpdateEvent(eventStore)))
 
 	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(eventStore)))
+
+	requireScrapersKey := handler.RequireAPIKey(appConfig.ScrapersKey)
+	scrapeRun := middleware.RateLimit(5, time.Minute)(handler.RunScrape(jobStore, service.NewScrapeJobID))
+	router.HandleFunc("POST /api/v1/scrape/run", requireScrapersKey(scrapeRun.ServeHTTP))
+	router.HandleFunc("GET /api/v1/scrape/status/{id}", requireScrapersKey(handler.ScrapeStatus(jobStore)))
+	router.HandleFunc("GET /api/v1/scrape/last-run", requireScrapersKey(handler.ScrapeLastRun(jobStore)))
+	router.HandleFunc("POST /api/v1/scrape/import", requireScrapersKey(handler.ScrapeImport()))
 
 	server := &http.Server{
 		Addr:         ":" + appConfig.Port,

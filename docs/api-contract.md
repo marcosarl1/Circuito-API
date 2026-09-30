@@ -218,6 +218,87 @@ Depois da remoção, o mesmo ID deve retornar:
 404 Not Found
 ```
 
+### POST /api/v1/scrape/run
+
+Solicita uma execução dos scrapers. Requer `X-API-Key` com a chave de scrapers.
+
+Resposta:
+
+```http
+202 Accepted
+```
+
+```json
+{
+  "job_id": "e840f07fb7db5b74c18cbfae95942f4d"
+}
+```
+
+Se já existir um job em andamento (`queued` ou `running`):
+
+```http
+409 Conflict
+```
+
+```json
+{
+  "detail": "Scrape já está em andamento"
+}
+```
+
+A aquisição é atômica: duas réplicas não iniciam duas execuções. Limite de 5 chamadas por minuto por cliente (`429`).
+
+O job fica persistido no MongoDB (`scrape_jobs`) com status `queued` até o worker Python existir e conduzi-lo para `running` → `complete`/`failed`.
+
+### GET /api/v1/scrape/status/{id}
+
+Retorna o job persistido. Requer chave de scrapers.
+
+```json
+{
+  "job_id": "e840f07fb7db5b74c18cbfae95942f4d",
+  "status": "queued",
+  "started_at": "2026-09-30T02:13:55.849597+00:00",
+  "finished_at": "",
+  "report": null,
+  "error": null
+}
+```
+
+`status` usa os mesmos valores da API anterior (`running`, `complete`, `failed`), acrescido de `queued` para jobs aguardando o worker. O frontend trata qualquer estado não terminal como em andamento.
+
+Job inexistente:
+
+```http
+404 Not Found
+```
+
+### GET /api/v1/scrape/last-run
+
+Requer chave de scrapers.
+
+```json
+{
+  "finished_at": null
+}
+```
+
+Retorna `null` quando nenhuma coleta foi concluída ainda.
+
+### POST /api/v1/scrape/import
+
+Requer chave de scrapers. A importação depende do worker Python, que ainda não existe:
+
+```http
+501 Not Implemented
+```
+
+```json
+{
+  "detail": "Importação indisponível: worker de scraping não configurado"
+}
+```
+
 ### GET /api/v1/dashboard/stats
 
 Retorna estatísticas agregadas dos eventos. Rota pública, sem autenticação.

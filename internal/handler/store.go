@@ -34,3 +34,19 @@ type EventStore interface {
 	GetDashboardEvents(
 		requestContext context.Context) ([]service.Event, error)
 }
+
+// JobStore abstracts scrape job persistence so handlers stay testable
+// without MongoDB. *repository.Store implements it.
+type JobStore interface {
+	AcquireScrapeJob(
+		requestContext context.Context,
+		jobID string,
+		startedAt string) (*service.ScrapeJob, error)
+
+	GetScrapeJob(
+		requestContext context.Context,
+		jobID string) (*service.ScrapeJob, error)
+
+	GetLastScrapeRun(
+		requestContext context.Context) (*string, error)
+}

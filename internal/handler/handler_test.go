@@ -410,3 +410,123 @@ func TestUpdateEventUpdatesExtendFields(t *testing.T) {
 		t.Fatalf("expected status %d, got %d; body=%s", http.StatusOK, recorder.Code, recorder.Body.String())
 	}
 }
+
+func TestRunScrapeAcceptsFirstJob(t *testing.T) {
+	store := newFakeJobStore()
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	recorder := httptest.NewRecorder()
+
+	RunScrape(store, func() string { return "job-1" })(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d; body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if response["job_id"] != "job-1" {
+		t.Fatalf("unexpected job_id: %q", response["job_id"])
+	}
+}
+
+func TestRunScrapeRejectsConcurrentJob(t *testing.T) {
+	store := newFakeJobStore()
+	handler := RunScrape(store, func() string { return "job-1" })
+
+	first := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	firstRecorder := httptest.NewRecorder()
+	handler(firstRecorder, first)
+	if firstRecorder.Code != http.StatusAccepted {
+		t.Fatalf("first: expected 202, got %d", firstRecorder.Code)
+	}
+
+	second := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	secondRecorder := httptest.NewRecorder()
+	handler(secondRecorder, second)
+	if secondRecorder.Code != http.StatusConflict {
+		t.Fatalf("second: expected 409, got %d; body=%s", secondRecorder.Code, secondRecorder.Body.String())
+	}
+}
+
+func TestRunScrapeWithoutStore(t *testing.T) {
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	recorder := httptest.NewRecorder()
+
+	RunScrape(nil, func() string { return "job-1" })(recorder, request)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d", recorder.Code)
+	}
+}
+
+func TestScrapeStatusReturnsJob(t *testing.T) {
+	store := newFakeJobStore()
+	store.jobs["job-1"] = &service.ScrapeJob{JobID: "job-1", Status: service.JobStatusQueued, StartedAt: service.NowISO()}
+
+	request := newTestRequest(http.MethodGet, "/api/v1/scrape/status/job-1", "")
+	request.SetPathValue("id", "job-1")
+	recorder := httptest.NewRecorder()
+
+	ScrapeStatus(store)(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	var job service.ScrapeJob
+	if err := json.NewDecoder(recorder.Body).Decode(&job); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if job.JobID != "job-1" || job.Status != service.JobStatusQueued {
+		t.Fatalf("unexpected job: %+v", job)
+	}
+}
+
+func TestScrapeStatusReturnsNotFound(t *testing.T) {
+	store := newFakeJobStore()
+
+	request := newTestRequest(http.MethodGet, "/api/v1/scrape/status/missing", "")
+	request.SetPathValue("id", "missing")
+	recorder := httptest.NewRecorder()
+
+	ScrapeStatus(store)(recorder, request)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", recorder.Code)
+	}
+}
+
+func TestScrapeLastRunReturnsNullWithoutRuns(t *testing.T) {
+	store := newFakeJobStore()
+
+	request := newTestRequest(http.MethodGet, "/api/v1/scrape/last-run", "")
+	recorder := httptest.NewRecorder()
+
+	ScrapeLastRun(store)(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+
+	var response map[string]any
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if finishedAt, exists := response["finished_at"]; !exists || finishedAt != nil {
+		t.Fatalf("expected null finished_at, got %v", response)
+	}
+}
+
+func TestScrapeImportReportsNotImplemented(t *testing.T) {
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/import", "")
+	recorder := httptest.NewRecorder()
+
+	ScrapeImport()(recorder, request)
+
+	if recorder.Code != http.StatusNotImplemented {
+		t.Fatalf("expected 501, got %d", recorder.Code)
+	}
+}
