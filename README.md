@@ -80,3 +80,34 @@ docker run --rm -p 8181:8181 \
 A imagem final é `distroless/static-debian12:nonroot`: só o binário,
 sem shell, sem Chromium, sem Python. Ela roda como usuário não-root
 e não contém nenhum segredo — toda configuração chega por ambiente.
+
+## Deploy
+
+Push para `main` com CI verde publica a imagem no GHCR (pacote
+**privado**, tag pelo SHA do commit) e atualiza o Container App
+usando o **digest** da imagem, nunca tag mutável.
+
+O app e o resource group vêm das variables `AZURE_CONTAINERAPP_NAME`
+(default `circuito-api`) e `AZURE_RESOURCE_GROUP` (default
+`rg-circuitoapp`). Crie o app antes do primeiro deploy (staging);
+o tráfego só migra para a API Go na fase de cutover.
+
+Secrets necessários no repositório (nomes canônicos, sem as
+variações legadas `MONGO_DB_NAME`/`MONGODB_REMOTE_DB`):
+
+`AZURE_CREDENTIALS`, `MONGODB_URI`, `MONGODB_DB_NAME`,
+`MONGODB_COLLECTION`, `API_KEY`, `SCRAPERS_API_KEY`, `CORS_ORIGINS`,
+`AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_BUCKET_NAME`, `GHCR_USERNAME`, `GHCR_PAT` (PAT com
+`read:packages`, para o pull da imagem privada).
+
+Rollback: como as tags são imutáveis por SHA, volte o app para
+o digest anterior:
+
+```bash
+az containerapp update \
+  -n circuito-api -g rg-circuitoapp \
+  -i "ghcr.io/marcosarl1/circuito-api@sha256:<digest-anterior>"
+```
+
+O digest de cada deploy fica no log do workflow.

@@ -1,0 +1,124 @@
+name: Deploy API
+
+on:
+  workflow_run:
+    workflows: ["API CI"]
+    branches: [main]
+    types: [completed]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/circuito-api:${{ github.event.workflow_run.head_sha }}
+
+      - name: Log in to Azure
+        uses: azure/login@v3
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Validate required secrets
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
+          MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
+          API_KEY: ${{ secrets.API_KEY }}
+          SCRAPERS_API_KEY: ${{ secrets.SCRAPERS_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          err=0
+          for v in MONGODB_URI MONGODB_DB_NAME MONGODB_COLLECTION \
+                   API_KEY SCRAPERS_API_KEY CORS_ORIGINS AWS_REGION \
+                   AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_BUCKET_NAME \
+                   GHCR_USERNAME GHCR_PAT; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error::Secret ausente ou vazio no GitHub: $v"
+              err=1
+            fi
+          done
+          exit $err
+
+      - name: Configure private registry
+        env:
+          APP_NAME: ${{ vars.AZURE_CONTAINERAPP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          az containerapp registry set \
+            -n "${APP_NAME:-circuito-api}" \
+            -g "${RESOURCE_GROUP:-rg-circuitoapp}" \
+            --server ghcr.io \
+            --username "$GHCR_USERNAME" \
+            --password "$GHCR_PAT"
+
+      - name: Deploy Container App
+        env:
+          APP_NAME: ${{ vars.AZURE_CONTAINERAPP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+          IMAGE_TAG: ${{ github.event.workflow_run.head_sha }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
+          MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
+          API_KEY: ${{ secrets.API_KEY }}
+          SCRAPERS_API_KEY: ${{ secrets.SCRAPERS_API_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          az containerapp update \
+            -n "${APP_NAME:-circuito-api}" \
+            -g "${RESOURCE_GROUP:-rg-circuitoapp}" \
+            -i "ghcr.io/${OWNER}/circuito-api@${IMAGE_DIGEST}" \
+            --set-env-vars \
+              MONGODB_URI="$MONGODB_URI" \
+              MONGODB_DB_NAME="$MONGODB_DB_NAME" \
+              MONGODB_COLLECTION="$MONGODB_COLLECTION" \
+              API_PORT="8181" \
+              API_KEY="$API_KEY" \
+              SCRAPERS_API_KEY="$SCRAPERS_API_KEY" \
+              CORS_ORIGINS="$CORS_ORIGINS" \
+              AWS_REGION="$AWS_REGION" \
+              AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+              AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+              AWS_BUCKET_NAME="$AWS_BUCKET_NAME"
+          echo "Deployed tag: ${IMAGE_TAG}"
+          echo "Deployed digest: ${IMAGE_DIGEST}"
