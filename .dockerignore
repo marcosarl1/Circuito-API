@@ -1,0 +1,13 @@
+.git
+.env
+.env.local
+*.log
+logs/
+docs/
+tests/
+main
+circuito-api
+/out/
+.vscode/
+.idea/
+.DS_Store
