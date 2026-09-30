@@ -36,6 +36,9 @@ func normalizeDistancias(value any) []string {
 		}
 		return distancias
 
+	case StringSlice:
+		return normalizeDistancias([]string(typedValue))
+
 	case []any:
 		distancias := make([]string, 0, len(typedValue))
 		for _, item := range typedValue {

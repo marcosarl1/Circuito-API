@@ -97,7 +97,7 @@ func (store *fakeEventStore) UpdateEvent(
 	}
 
 	if distancias, ok := updates["distancias"].([]string); ok {
-		event.Distancias = distancias
+		event.Distancias = service.StringSlice(distancias)
 	}
 
 	if horario, ok := updates["horario"].(string); ok {
