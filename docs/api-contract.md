@@ -299,6 +299,62 @@ Requer chave de scrapers. A importação depende do worker Python, que ainda nã
 }
 ```
 
+### GET /api/v1/sync-bucket/status
+
+Informa se uma sincronização com o bucket está em andamento. Requer `X-API-Key`.
+
+```json
+{
+  "in_progress": false
+}
+```
+
+### POST /api/v1/sync-bucket
+
+Serializa todos os eventos para o formato legado do bucket (chave `_id`, igual ao arquivo `eventos_real.json` consumido pelo site público) e envia ao S3. Requer `X-API-Key`.
+
+Sucesso:
+
+```http
+200 OK
+```
+
+```json
+{
+  "status": "ok",
+  "eventos_synced": 246
+}
+```
+
+Quando o conteúdo é idêntico ao último sync, o upload é pulado:
+
+```json
+{
+  "status": "unchanged",
+  "eventos_synced": 246
+}
+```
+
+O `unchanged` é uma extensão compatível: mesmo formato, um valor novo. O fingerprint (SHA256) fica persistido no MongoDB (`bucket_sync`), então sobrevive a reinícios.
+
+Sem bucket configurado:
+
+```http
+500 Internal Server Error
+```
+
+```json
+{
+  "detail": "AWS_BUCKET_NAME não configurado"
+}
+```
+
+Sync em andamento:
+
+```http
+409 Conflict
+```
+
 ### GET /api/v1/dashboard/stats
 
 Retorna estatísticas agregadas dos eventos. Rota pública, sem autenticação.

@@ -530,3 +530,22 @@ func TestScrapeImportReportsNotImplemented(t *testing.T) {
 		t.Fatalf("expected 501, got %d", recorder.Code)
 	}
 }
+
+func TestSyncBucketStatusReportsIdle(t *testing.T) {
+	request := newTestRequest(http.MethodGet, "/api/v1/sync-bucket/status", "")
+	recorder := httptest.NewRecorder()
+
+	SyncBucketStatus(nil)(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+
+	var response map[string]bool
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if response["in_progress"] {
+		t.Fatal("expected in_progress=false")
+	}
+}

@@ -16,6 +16,11 @@ type Config struct {
 	APIKey          string
 	ScrapersKey     string
 	CorsOrigin      string
+	AWSBucketName   string
+	AWSRegion       string
+	AWSAccessKeyID  string
+	AWSSecretKey    string
+	BucketJSONKey   string
 }
 
 func getenv(key, def string) string {
@@ -46,5 +51,10 @@ func Load() (Config, error) {
 		APIKey:          os.Getenv("API_KEY"),
 		ScrapersKey:     os.Getenv("SCRAPERS_API_KEY"),
 		CorsOrigin:      getenv("CORS_ORIGINS", "*"),
+		AWSBucketName:   os.Getenv("AWS_BUCKET_NAME"),
+		AWSRegion:       getenv("AWS_REGION", "us-east-1"),
+		AWSAccessKeyID:  os.Getenv("AWS_ACCESS_KEY_ID"),
+		AWSSecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
+		BucketJSONKey:   getenv("BUCKET_JSON_KEY", "eventos_real.json"),
 	}, nil
 }

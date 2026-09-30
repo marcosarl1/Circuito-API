@@ -14,6 +14,7 @@ import (
 	"github.com/marcosarl1/Circuito-API/internal/middleware"
 	"github.com/marcosarl1/Circuito-API/internal/repository"
 	"github.com/marcosarl1/Circuito-API/internal/service"
+	"github.com/marcosarl1/Circuito-API/internal/storage"
 )
 
 const mongoShutdownTimeout = 5 * time.Second
@@ -64,6 +65,19 @@ func main() {
 	router.HandleFunc("GET /api/v1/scrape/status/{id}", requireScrapersKey(handler.ScrapeStatus(jobStore)))
 	router.HandleFunc("GET /api/v1/scrape/last-run", requireScrapersKey(handler.ScrapeLastRun(jobStore)))
 	router.HandleFunc("POST /api/v1/scrape/import", requireScrapersKey(handler.ScrapeImport()))
+
+	var syncer *storage.BucketSync
+	if store != nil {
+		syncer = storage.NewBucketSync(
+			appConfig.AWSBucketName,
+			appConfig.BucketJSONKey,
+			store.GetAllEvents,
+			store,
+			storage.NewS3Uploader(appConfig.AWSRegion, appConfig.AWSAccessKeyID, appConfig.AWSSecretKey),
+		)
+	}
+	router.HandleFunc("GET /api/v1/sync-bucket/status", requireAPIKey(handler.SyncBucketStatus(syncer)))
+	router.HandleFunc("POST /api/v1/sync-bucket", requireAPIKey(handler.SyncBucket(syncer)))
 
 	server := &http.Server{
 		Addr:         ":" + appConfig.Port,
