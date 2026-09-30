@@ -218,6 +218,50 @@ Depois da remoção, o mesmo ID deve retornar:
 404 Not Found
 ```
 
+### GET /api/v1/dashboard/stats
+
+Retorna estatísticas agregadas dos eventos. Rota pública, sem autenticação.
+
+Resposta (chaves principais):
+
+```json
+{
+  "total": 246,
+  "ativos": 59,
+  "passados": 187,
+  "proximos30d": 12,
+  "proximos90d": 30,
+  "semPreco": 40,
+  "patrocinados": 5,
+  "semImagem": 10,
+  "semLink": 3,
+  "semRegulamento": 20,
+  "valorMedio": 89.72,
+  "lote1Count": 15,
+  "porMes": [{"label": "2026-10", "count": 8}],
+  "porEstado": [{"estado": "PB", "count": 228}],
+  "porCidade": [{"cidade": "João Pessoa", "count": 150}],
+  "porDistancia": [{"distancia": "5KM", "count": 120}],
+  "porOrganizador": [{"organizador": "Org A", "count": 30}],
+  "porFonte": [{"fonte": "brasilquecorre", "count": 200}],
+  "densidade": [{"data": "2026-10-04", "count": 2}],
+  "choques": 4,
+  "statusInscricoes": {"abertas": 40, "emBreve": 19, "encerradas": 187},
+  "comPercurso": 50,
+  "comKits": 30,
+  "porHorario": [{"label": "07:00", "count": 90}],
+  "porKit": [{"label": "Kit Básico", "count": 20}],
+  "scraperHealth": [],
+  "proximosEventos": []
+}
+```
+
+Regras:
+
+- `proximosEventos` usa `_id` (com underline) como chave do identificador, igual ao backend anterior;
+- `statusInscricoes.emBreve` usa camelCase;
+- `scraperHealth` exclui fontes manuais e `ticketsports`.
+
 ## Formato de erro
 
 Os erros usam o formato:

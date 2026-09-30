@@ -132,3 +132,35 @@ func (store *Store) DeleteEvent(requestContext context.Context, eventID string) 
 	}
 	return deleteResult.DeletedCount == 1, nil
 }
+
+func (store *Store) GetDashboardEvents(requestContext context.Context) ([]service.Event, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 15*time.Second)
+	defer cancel()
+	projection := bson.M{
+		"_id": 1, "nome_evento": 1, "data_realizacao": 1, "datas_realizacao": 1,
+		"data_coleta": 1, "estado": 1, "cidade": 1, "site_coleta": 1,
+		"organizador": 1, "precos_entries": 1, "patrocinado": 1,
+		"url_imagem": 1, "url_inscricao": 1, "link_edital": 1,
+		"distancias": 1, "percurso": 1, "kits": 1, "horario": 1,
+	}
+	cursor, err := store.Collection.Find(
+		requestContext,
+		bson.M{},
+		options.Find().SetProjection(projection).SetBatchSize(500),
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(requestContext)
+	var eventos []service.Event
+	if err := cursor.All(requestContext, &eventos); err != nil {
+		return nil, err
+	}
+	for index := range eventos {
+		eventos[index].Normalize()
+	}
+	if eventos == nil {
+		eventos = []service.Event{}
+	}
+	return eventos, nil
+}

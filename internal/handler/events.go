@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/marcosarl1/Circuito-API/internal/repository"
 	"github.com/marcosarl1/Circuito-API/internal/service"
@@ -136,6 +137,22 @@ func UpdateEvent(store EventStore) http.HandlerFunc {
 		}
 
 		writeJSON(writer, http.StatusOK, updatedEvent)
+	}
+}
+
+func DashboardStats(store EventStore) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if store == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		eventos, err := store.GetDashboardEvents(request.Context())
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		stats := service.ComputeDashboardStats(eventos, time.Now())
+		writeJSON(writer, http.StatusOK, stats)
 	}
 }
 

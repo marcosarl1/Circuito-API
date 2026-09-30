@@ -44,6 +44,7 @@ func main() {
 
 	router.HandleFunc("GET /api/v1/eventos", handler.ListEvents(eventStore))
 	router.HandleFunc("GET /api/v1/eventos/{id}", handler.GetEvent(eventStore))
+	router.HandleFunc("GET /api/v1/dashboard/stats", handler.DashboardStats(eventStore))
 
 	requireAPIKey := handler.RequireAPIKey(appConfig.APIKey)
 	router.HandleFunc("POST /api/v1/eventos", requireAPIKey(handler.CreateEvent(eventStore, func(requestContext context.Context) (string, error) {

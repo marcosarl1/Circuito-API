@@ -131,3 +131,13 @@ func (store *fakeEventStore) DeleteEvent(
 
 	return true, nil
 }
+
+func (store *fakeEventStore) GetDashboardEvents(
+	requestContext context.Context,
+) ([]service.Event, error) {
+	eventos := make([]service.Event, 0, len(store.events))
+	for _, evento := range store.events {
+		eventos = append(eventos, evento)
+	}
+	return eventos, nil
+}

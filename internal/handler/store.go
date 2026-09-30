@@ -30,4 +30,7 @@ type EventStore interface {
 	DeleteEvent(
 		requestContext context.Context,
 		eventID string) (bool, error)
+
+	GetDashboardEvents(
+		requestContext context.Context) ([]service.Event, error)
 }
