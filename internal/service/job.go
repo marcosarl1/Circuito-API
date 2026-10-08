@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	JobStatusQueued   = "queued"
-	JobStatusRunning  = "running"
-	JobStatusComplete = "complete"
-	JobStatusFailed   = "failed"
+	JobStatusQueued         = "queued"
+	JobStatusRunning        = "running"
+	JobStatusComplete       = "complete"
+	JobStatusFailed         = "failed"
+	JobStatusAwaitingImport = "awaiting_import"
 )
 
 type ScrapeJob struct {

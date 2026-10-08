@@ -73,6 +73,54 @@ func ScrapeLastRun(jobStore JobStore) http.HandlerFunc {
 	}
 }
 
+func ConfirmScrapeJob(jobStore JobStore, trigger func(context.Context) error) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if jobStore == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		job, err := jobStore.ConfirmScrapeJob(request.Context(), request.PathValue("id"))
+		if err != nil {
+			if errors.Is(err, repository.ErrScrapeJobNotFound) {
+				writeError(writer, http.StatusNotFound, "Job não encontrado")
+				return
+			}
+			if errors.Is(err, repository.ErrScrapeNotAwaiting) {
+				writeError(writer, http.StatusConflict, "Job não está aguardando importação")
+				return
+			}
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		if trigger != nil {
+			if err := trigger(request.Context()); err != nil {
+				slog.Error("scrape confirm trigger failed, job stays queued", "job_id", job.JobID, "err", err)
+				writeError(writer, http.StatusServiceUnavailable, "Job na fila, inicie o worker manualmente")
+				return
+			}
+		}
+		writeJSON(writer, http.StatusAccepted, map[string]string{"job_id": job.JobID})
+	}
+}
+
+func CancelScrapeJob(jobStore JobStore) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if jobStore == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		if err := jobStore.AbandonScrapeJob(request.Context(), request.PathValue("id"), "cancelado pelo usuário"); err != nil {
+			if errors.Is(err, repository.ErrScrapeJobNotFound) {
+				writeError(writer, http.StatusNotFound, "Job não encontrado")
+				return
+			}
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
 func ScrapeImport() http.HandlerFunc {
 	return func(writer http.ResponseWriter, _ *http.Request) {
 		writeError(writer, http.StatusNotImplemented, "Importação indisponível: worker de scraping não configurado")

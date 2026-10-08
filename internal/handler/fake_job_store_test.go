@@ -39,6 +39,18 @@ func (store *fakeJobStore) GetLastScrapeRun(_ context.Context) (*string, error) 
 	return store.lastRun, nil
 }
 
+func (store *fakeJobStore) ConfirmScrapeJob(_ context.Context, jobID string) (*service.ScrapeJob, error) {
+	job, exists := store.jobs[jobID]
+	if !exists {
+		return nil, repository.ErrScrapeJobNotFound
+	}
+	if job.Status != service.JobStatusAwaitingImport {
+		return nil, repository.ErrScrapeNotAwaiting
+	}
+	job.Status = service.JobStatusQueued
+	return job, nil
+}
+
 func (store *fakeJobStore) AbandonScrapeJob(_ context.Context, jobID, reason string) error {
 	job, exists := store.jobs[jobID]
 	if !exists {

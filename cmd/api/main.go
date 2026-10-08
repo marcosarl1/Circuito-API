@@ -103,6 +103,8 @@ func main() {
 	router.HandleFunc("GET /api/v1/scrape/status/{id}", requireScrapersKey(handler.ScrapeStatus(jobStore)))
 	router.HandleFunc("GET /api/v1/scrape/last-run", requireScrapersKey(handler.ScrapeLastRun(jobStore)))
 	router.HandleFunc("POST /api/v1/scrape/import", requireScrapersKey(handler.ScrapeImport()))
+	router.HandleFunc("POST /api/v1/scrape/confirm/{id}", requireScrapersKey(handler.ConfirmScrapeJob(jobStore, buildScrapeTrigger(appConfig))))
+	router.HandleFunc("POST /api/v1/scrape/cancel/{id}", requireScrapersKey(handler.CancelScrapeJob(jobStore)))
 
 	var syncer *storage.BucketSync
 	if store != nil {

@@ -602,3 +602,79 @@ func TestRunScrapeAbandonsJobWhenTriggerFails(t *testing.T) {
 		t.Fatalf("slot should be free after abandon, got %d", secondRecorder.Code)
 	}
 }
+
+func awaitingJob(store *fakeJobStore, id string) {
+	store.jobs[id] = &service.ScrapeJob{JobID: id, Status: service.JobStatusAwaitingImport, StartedAt: service.NowISO()}
+	store.locked = true
+}
+
+func TestConfirmScrapeJobResumesImport(t *testing.T) {
+	store := newFakeJobStore()
+	awaitingJob(store, "job-1")
+	triggered := false
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/confirm/job-1", "")
+	request.SetPathValue("id", "job-1")
+	recorder := httptest.NewRecorder()
+
+	ConfirmScrapeJob(store, func(context.Context) error {
+		triggered = true
+		return nil
+	})(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d; body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !triggered {
+		t.Fatal("expected worker trigger to run")
+	}
+	job, _ := store.GetScrapeJob(context.Background(), "job-1")
+	if job.Status != service.JobStatusQueued {
+		t.Fatalf("expected back to queued, got %q", job.Status)
+	}
+}
+
+func TestConfirmScrapeJobRejectsWrongState(t *testing.T) {
+	store := newFakeJobStore()
+	store.jobs["job-1"] = &service.ScrapeJob{JobID: "job-1", Status: service.JobStatusRunning}
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/confirm/job-1", "")
+	request.SetPathValue("id", "job-1")
+	recorder := httptest.NewRecorder()
+
+	ConfirmScrapeJob(store, nil)(recorder, request)
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("expected 409, got %d", recorder.Code)
+	}
+
+	missing := newTestRequest(http.MethodPost, "/api/v1/scrape/confirm/void", "")
+	missing.SetPathValue("id", "void")
+	missingRecorder := httptest.NewRecorder()
+	ConfirmScrapeJob(store, nil)(missingRecorder, missing)
+	if missingRecorder.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", missingRecorder.Code)
+	}
+}
+
+func TestCancelScrapeJobFreesSlot(t *testing.T) {
+	store := newFakeJobStore()
+	awaitingJob(store, "job-1")
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/cancel/job-1", "")
+	request.SetPathValue("id", "job-1")
+	recorder := httptest.NewRecorder()
+
+	CancelScrapeJob(store)(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", recorder.Code)
+	}
+
+	next := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	nextRecorder := httptest.NewRecorder()
+	RunScrape(store, func() string { return "job-2" }, nil)(nextRecorder, next)
+	if nextRecorder.Code != http.StatusAccepted {
+		t.Fatalf("slot should be free after cancel, got %d", nextRecorder.Code)
+	}
+}

@@ -8,11 +8,13 @@ import (
 	"github.com/marcosarl1/Circuito-API/internal/service"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var (
 	ErrScrapeInProgress  = errors.New("scrape already in progress")
 	ErrScrapeJobNotFound = errors.New("scrape job not found")
+	ErrScrapeNotAwaiting = errors.New("scrape job is not awaiting import")
 )
 
 func (store *Store) scrapeJobs() *mongo.Collection {
@@ -40,6 +42,25 @@ func (store *Store) AcquireScrapeJob(requestContext context.Context, jobID, star
 		return nil, err
 	}
 	return job, nil
+}
+
+func (store *Store) ConfirmScrapeJob(requestContext context.Context, jobID string) (*service.ScrapeJob, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	var job service.ScrapeJob
+	err := store.scrapeJobs().FindOneAndUpdate(
+		requestContext,
+		bson.M{"_id": jobID, "status": service.JobStatusAwaitingImport},
+		bson.M{"$set": bson.M{"status": service.JobStatusQueued}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&job)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, ErrScrapeNotAwaiting
+		}
+		return nil, err
+	}
+	return &job, nil
 }
 
 func (store *Store) GetScrapeJob(requestContext context.Context, jobID string) (*service.ScrapeJob, error) {

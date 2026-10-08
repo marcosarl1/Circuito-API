@@ -291,6 +291,22 @@ Pré-requisitos do disparo (executados uma vez, fora da API): identidade
 gerenciada no app da API + role `Container Apps Jobs Operator` no job.
 Sem isso (desenvolvimento local), o comportamento é só-enfileirar.
 
+### Fluxo com confirmação humana
+
+A importação exige confirmação antes de gravar no banco. O ciclo é:
+
+1. `POST /scrape/run` → `202 {job_id}` (coleta executa).
+2. Job vai para `awaiting_import` com o relatório parcial; o frontend
+   abre o modal de revisão (qualquer estado não terminal mantém polling).
+3. `POST /api/v1/scrape/confirm/{id}` → `202` (requer chave de scrapers):
+   o job volta a `queued` para a fase de import e o worker dispara.
+   Estado errado → `409`; inexistente → `404`.
+4. `POST /api/v1/scrape/cancel/{id}` → `204`: abandona o job e libera o
+   slot (payloads órfãos expiram por TTL). Inexistente → `404`.
+
+Sem confirmação ou cancelamento, o slot permanece ocupado: duas
+requisições simultâneas nunca iniciam duas execuções.
+
 A aquisição é atômica: duas réplicas não iniciam duas execuções. Limite de 5 chamadas por minuto por cliente (`429`).
 
 O job fica persistido no MongoDB (`scrape_jobs`) com status `queued` até o worker Python existir e conduzi-lo para `running` → `complete`/`failed`.
