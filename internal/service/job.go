@@ -20,6 +20,7 @@ type ScrapeJob struct {
 	FinishedAt string  `bson:"finished_at" json:"finished_at"`
 	Report     any     `bson:"report" json:"report"`
 	Error      *string `bson:"error" json:"error"`
+	Active     bool    `bson:"active" json:"-"`
 }
 
 func NowISO() string {

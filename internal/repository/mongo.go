@@ -47,6 +47,16 @@ func (store *Store) EnsureIndexes(requestContext context.Context) error {
 		{Keys: bson.D{{Key: "nome_evento", Value: 1}}},
 		{Keys: bson.D{{Key: "cidade", Value: 1}}},
 	})
+	if err != nil {
+		return err
+	}
+
+	_, err = store.DB.Collection("scrape_jobs").Indexes().CreateOne(requestContext, mongo.IndexModel{
+		Keys: bson.D{{Key: "active", Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetPartialFilterExpression(bson.M{"active": true}),
+	})
 	return err
 }
 

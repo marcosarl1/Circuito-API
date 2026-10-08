@@ -15,14 +15,8 @@ var (
 	ErrScrapeJobNotFound = errors.New("scrape job not found")
 )
 
-const scrapeLockID = "scrape"
-
 func (store *Store) scrapeJobs() *mongo.Collection {
 	return store.DB.Collection("scrape_jobs")
-}
-
-func (store *Store) scrapeLocks() *mongo.Collection {
-	return store.DB.Collection("scrape_locks")
 }
 
 func (store *Store) scrapeState() *mongo.Collection {
@@ -33,42 +27,19 @@ func (store *Store) AcquireScrapeJob(requestContext context.Context, jobID, star
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
 
-	lock := bson.M{"_id": scrapeLockID, "job_id": jobID, "acquired_at": startedAt}
-	if _, err := store.scrapeLocks().InsertOne(requestContext, lock); err != nil {
-		if !mongo.IsDuplicateKeyError(err) {
-			return nil, err
-		}
-		if reclaimed := store.reclaimStaleScrapeLock(requestContext); reclaimed {
-			return store.AcquireScrapeJob(context.Background(), jobID, startedAt)
-		}
-		return nil, ErrScrapeInProgress
-	}
-
 	job := &service.ScrapeJob{
 		JobID:     jobID,
 		Status:    service.JobStatusQueued,
 		StartedAt: startedAt,
+		Active:    true,
 	}
 	if _, err := store.scrapeJobs().InsertOne(requestContext, job); err != nil {
-		_, _ = store.scrapeLocks().DeleteOne(context.Background(), bson.M{"_id": scrapeLockID, "job_id": jobID})
+		if mongo.IsDuplicateKeyError(err) {
+			return nil, ErrScrapeInProgress
+		}
 		return nil, err
 	}
 	return job, nil
-}
-
-func (store *Store) reclaimStaleScrapeLock(requestContext context.Context) bool {
-	var lock struct {
-		JobID string `bson:"job_id"`
-	}
-	if err := store.scrapeLocks().FindOne(requestContext, bson.M{"_id": scrapeLockID}).Decode(&lock); err != nil {
-		return false
-	}
-	job, err := store.GetScrapeJob(requestContext, lock.JobID)
-	if err == nil && (job.Status == service.JobStatusQueued || job.Status == service.JobStatusRunning) {
-		return false
-	}
-	_, err = store.scrapeLocks().DeleteOne(requestContext, bson.M{"_id": scrapeLockID, "job_id": lock.JobID})
-	return err == nil
 }
 
 func (store *Store) GetScrapeJob(requestContext context.Context, jobID string) (*service.ScrapeJob, error) {
