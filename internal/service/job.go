@@ -17,12 +17,18 @@ const (
 type ScrapeJob struct {
 	JobID      string  `bson:"_id" json:"job_id"`
 	Status     string  `bson:"status" json:"status"`
+	Phase      string  `bson:"phase" json:"phase"`
 	StartedAt  string  `bson:"started_at" json:"started_at"`
 	FinishedAt string  `bson:"finished_at" json:"finished_at"`
 	Report     any     `bson:"report" json:"report"`
 	Error      *string `bson:"error" json:"error"`
 	Active     bool    `bson:"active" json:"-"`
 }
+
+const (
+	PhaseCollect = "collect"
+	PhaseImport  = "import"
+)
 
 func NowISO() string {
 	return time.Now().UTC().Format("2006-01-02T15:04:05.000000+00:00")

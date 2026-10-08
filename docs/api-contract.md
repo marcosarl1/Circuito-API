@@ -301,8 +301,39 @@ A importação exige confirmação antes de gravar no banco. O ciclo é:
 3. `POST /api/v1/scrape/confirm/{id}` → `202` (requer chave de scrapers):
    o job volta a `queued` para a fase de import e o worker dispara.
    Estado errado → `409`; inexistente → `404`.
-4. `POST /api/v1/scrape/cancel/{id}` → `204`: abandona o job e libera o
-   slot (payloads órfãos expiram por TTL). Inexistente → `404`.
+4. `POST /api/v1/scrape/cancel/{id}` → `204`: abandona o job, **apaga os
+   CSVs do payload** e libera o slot (dados descartados não esperam TTL).
+   Inexistente → `404`.
+
+### Recuperar coleta pendente
+
+Reload ou modal fechado durante a revisão não perdem a coleta: o payload
+fica no Mongo por TTL de 24h.
+
+```http
+GET /api/v1/scrape/awaiting
+```
+
+```json
+{
+  "job": {
+    "job_id": "e840f07fb7db5b74c18cbfae95942f4d",
+    "status": "awaiting_import",
+    "phase": "collect",
+    "started_at": "2026-10-08T02:11:16.000000+00:00",
+    "finished_at": "",
+    "report": { "scrapers": [], "csvs": [] },
+    "error": null
+  }
+}
+```
+
+`job: null` quando não há nada pendente. Com job presente, o painel reabre
+o modal e oferece confirmar ou descartar — mesma semântica do passo 3/4.
+
+Job confirmado tem o payload apagado após a importação concluir; job
+descartado tem o payload apagado no ato. Só uma run sem decisão (sessão
+fechada) mantém o payload até o TTL.
 
 Sem confirmação ou cancelamento, o slot permanece ocupado: duas
 requisições simultâneas nunca iniciam duas execuções.

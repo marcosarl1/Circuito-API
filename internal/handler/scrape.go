@@ -109,7 +109,8 @@ func CancelScrapeJob(jobStore JobStore) http.HandlerFunc {
 			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
 			return
 		}
-		if err := jobStore.AbandonScrapeJob(request.Context(), request.PathValue("id"), "cancelado pelo usuário"); err != nil {
+		jobID := request.PathValue("id")
+		if err := jobStore.AbandonScrapeJob(request.Context(), jobID, "cancelado pelo usuário"); err != nil {
 			if errors.Is(err, repository.ErrScrapeJobNotFound) {
 				writeError(writer, http.StatusNotFound, "Job não encontrado")
 				return
@@ -117,7 +118,25 @@ func CancelScrapeJob(jobStore JobStore) http.HandlerFunc {
 			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
+		if err := jobStore.DeleteScrapePayload(request.Context(), jobID); err != nil {
+			slog.Warn("scrape payload cleanup failed", "job_id", jobID, "err", err)
+		}
 		writer.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func ScrapeAwaiting(jobStore JobStore) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if jobStore == nil {
+			writeError(writer, http.StatusServiceUnavailable, "Banco de dados indisponível")
+			return
+		}
+		job, err := jobStore.FindAwaitingScrapeJob(request.Context())
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "Erro interno")
+			return
+		}
+		writeJSON(writer, http.StatusOK, map[string]any{"job": job})
 	}
 }
 

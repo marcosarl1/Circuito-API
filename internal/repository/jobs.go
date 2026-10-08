@@ -32,6 +32,7 @@ func (store *Store) AcquireScrapeJob(requestContext context.Context, jobID, star
 	job := &service.ScrapeJob{
 		JobID:     jobID,
 		Status:    service.JobStatusQueued,
+		Phase:     service.PhaseCollect,
 		StartedAt: startedAt,
 		Active:    true,
 	}
@@ -51,7 +52,7 @@ func (store *Store) ConfirmScrapeJob(requestContext context.Context, jobID strin
 	err := store.scrapeJobs().FindOneAndUpdate(
 		requestContext,
 		bson.M{"_id": jobID, "status": service.JobStatusAwaitingImport},
-		bson.M{"$set": bson.M{"status": service.JobStatusQueued}},
+		bson.M{"$set": bson.M{"status": service.JobStatusQueued, "phase": service.PhaseImport}},
 		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&job)
 	if err != nil {
@@ -61,6 +62,32 @@ func (store *Store) ConfirmScrapeJob(requestContext context.Context, jobID strin
 		return nil, err
 	}
 	return &job, nil
+}
+
+func (store *Store) FindAwaitingScrapeJob(requestContext context.Context) (*service.ScrapeJob, error) {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	var job service.ScrapeJob
+	err := store.scrapeJobs().FindOne(
+		requestContext,
+		bson.M{"status": service.JobStatusAwaitingImport},
+		options.FindOne().SetSort(bson.D{{Key: "started_at", Value: -1}}),
+	).Decode(&job)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &job, nil
+}
+
+func (store *Store) DeleteScrapePayload(requestContext context.Context, jobID string) error {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	_, err := store.DB.Collection("scrape_payload").
+		DeleteMany(requestContext, bson.M{"job_id": jobID})
+	return err
 }
 
 func (store *Store) GetScrapeJob(requestContext context.Context, jobID string) (*service.ScrapeJob, error) {

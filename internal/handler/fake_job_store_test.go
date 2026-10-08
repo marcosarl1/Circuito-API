@@ -8,9 +8,10 @@ import (
 )
 
 type fakeJobStore struct {
-	jobs    map[string]*service.ScrapeJob
-	locked  bool
-	lastRun *string
+	jobs           map[string]*service.ScrapeJob
+	locked         bool
+	lastRun        *string
+	payloadDeleted bool
 }
 
 func newFakeJobStore() *fakeJobStore {
@@ -49,6 +50,22 @@ func (store *fakeJobStore) ConfirmScrapeJob(_ context.Context, jobID string) (*s
 	}
 	job.Status = service.JobStatusQueued
 	return job, nil
+}
+
+func (store *fakeJobStore) FindAwaitingScrapeJob(_ context.Context) (*service.ScrapeJob, error) {
+	var latest *service.ScrapeJob
+	for _, job := range store.jobs {
+		if job.Status == service.JobStatusAwaitingImport &&
+			(latest == nil || job.StartedAt > latest.StartedAt) {
+			latest = job
+		}
+	}
+	return latest, nil
+}
+
+func (store *fakeJobStore) DeleteScrapePayload(_ context.Context, _ string) error {
+	store.payloadDeleted = true
+	return nil
 }
 
 func (store *fakeJobStore) AbandonScrapeJob(_ context.Context, jobID, reason string) error {

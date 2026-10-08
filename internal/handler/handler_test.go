@@ -678,3 +678,54 @@ func TestCancelScrapeJobFreesSlot(t *testing.T) {
 		t.Fatalf("slot should be free after cancel, got %d", nextRecorder.Code)
 	}
 }
+
+func TestCancelScrapeJobDeletesPayload(t *testing.T) {
+	store := newFakeJobStore()
+	awaitingJob(store, "job-1")
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/cancel/job-1", "")
+	request.SetPathValue("id", "job-1")
+	recorder := httptest.NewRecorder()
+
+	CancelScrapeJob(store)(recorder, request)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", recorder.Code)
+	}
+	if !store.payloadDeleted {
+		t.Fatal("expected collected payload to be deleted on cancel")
+	}
+}
+
+func TestScrapeAwaitingReturnsPendingJob(t *testing.T) {
+	store := newFakeJobStore()
+	request := newTestRequest(http.MethodGet, "/api/v1/scrape/awaiting", "")
+	recorder := httptest.NewRecorder()
+
+	ScrapeAwaiting(store)(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", recorder.Code)
+	}
+	var response struct {
+		Job *service.ScrapeJob `json:"job"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if response.Job != nil {
+		t.Fatalf("expected no job, got %+v", response.Job)
+	}
+
+	awaitingJob(store, "job-1")
+	store.jobs["job-1"].StartedAt = "2026-10-08T02:00:00.000000+00:00"
+	pending := newTestRequest(http.MethodGet, "/api/v1/scrape/awaiting", "")
+	pendingRecorder := httptest.NewRecorder()
+	ScrapeAwaiting(store)(pendingRecorder, pending)
+	if err := json.NewDecoder(pendingRecorder.Body).Decode(&response); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if response.Job == nil || response.Job.JobID != "job-1" {
+		t.Fatalf("expected pending job-1, got %+v", response.Job)
+	}
+}

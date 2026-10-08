@@ -66,6 +66,13 @@ type JobStore interface {
 	ConfirmScrapeJob(
 		requestContext context.Context,
 		jobID string) (*service.ScrapeJob, error)
+
+	FindAwaitingScrapeJob(
+		requestContext context.Context) (*service.ScrapeJob, error)
+
+	DeleteScrapePayload(
+		requestContext context.Context,
+		jobID string) error
 }
 
 // UserStore abstracts admin account and session persistence so auth

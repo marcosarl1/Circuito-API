@@ -57,6 +57,13 @@ func (store *Store) EnsureIndexes(requestContext context.Context) error {
 			SetUnique(true).
 			SetPartialFilterExpression(bson.M{"active": true}),
 	})
+	if err != nil {
+		return err
+	}
+	_, err = store.DB.Collection("scrape_payload").Indexes().CreateOne(requestContext, mongo.IndexModel{
+		Keys:    bson.D{{Key: "expires_at", Value: 1}},
+		Options: options.Index().SetExpireAfterSeconds(0),
+	})
 	return err
 }
 
