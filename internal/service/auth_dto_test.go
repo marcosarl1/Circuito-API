@@ -1,0 +1,60 @@
+package service
+
+import (
+	"strings"
+	"testing"
+	"time"
+)
+
+func TestLoginRequestValidation(t *testing.T) {
+	valid := LoginRequest{Email: "admin@example.com", Password: "segredo-123"}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid rejected: %v", err)
+	}
+
+	invalid := []LoginRequest{
+		{Email: "", Password: "segredo-123"},
+		{Email: "sem-arroba", Password: "segredo-123"},
+		{Email: "a@b@c.com", Password: "segredo-123"},
+		{Email: "admin@example.com", Password: ""},
+		{Email: "  ", Password: "x"},
+	}
+	for index, request := range invalid {
+		if err := request.Validate(); err == nil {
+			t.Fatalf("case %d accepted: %+v", index, request)
+		}
+	}
+}
+
+func TestRefreshRequestValidation(t *testing.T) {
+	raw, _, err := NewRefreshToken()
+	if err != nil {
+		t.Fatalf("new token: %v", err)
+	}
+	if err := (RefreshRequest{RefreshToken: raw}).Validate(); err != nil {
+		t.Fatalf("valid rejected: %v", err)
+	}
+
+	for _, value := range []string{"", "curto", strings.Repeat("z", 64), strings.Repeat("0", 63)} {
+		if err := (RefreshRequest{RefreshToken: value}).Validate(); err == nil {
+			t.Fatalf("accepted garbage: %q", value)
+		}
+	}
+}
+
+func TestPasswordPolicy(t *testing.T) {
+	if err := ValidateNewPassword("1234567"); err == nil {
+		t.Fatal("7 chars accepted")
+	}
+	if err := ValidateNewPassword("12345678"); err != nil {
+		t.Fatalf("8 chars rejected: %v", err)
+	}
+}
+
+func TestPublicUserHidesHash(t *testing.T) {
+	user := User{ID: "1", Email: "a@b.c", PasswordHash: "hash-secreto", CreatedAt: time.Now()}
+	public := user.Public()
+	if public.ID != "1" || public.Email != "a@b.c" {
+		t.Fatalf("projection lost fields: %+v", public)
+	}
+}
