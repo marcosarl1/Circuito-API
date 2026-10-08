@@ -70,7 +70,7 @@ func TestLoginIssuesTokensAndCookie(t *testing.T) {
 		t.Fatalf("expected 200, got %d; body=%s", recorder.Code, recorder.Body.String())
 	}
 	cookie := recorder.Header().Get("Set-Cookie")
-	for _, part := range []string{"refresh_token=", "HttpOnly", "Path=/api/v1/auth/"} {
+	for _, part := range []string{"refresh_token=", "HttpOnly", "Path=/api"} {
 		if !strings.Contains(cookie, part) {
 			t.Fatalf("cookie sem %q: %q", part, cookie)
 		}

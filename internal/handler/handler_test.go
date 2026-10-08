@@ -729,3 +729,28 @@ func TestScrapeAwaitingReturnsPendingJob(t *testing.T) {
 		t.Fatalf("expected pending job-1, got %+v", response.Job)
 	}
 }
+
+func TestRefreshCookiePathReachesEdgeProxy(t *testing.T) {
+	store := newFakeUserStore()
+	seedTestUser(t, store)
+	auth := testAuthConfig(store)
+
+	request := newTestRequest(http.MethodPost, "/api/v1/auth/login",
+		`{"username":"admincircuito","password":"senha-correta-123"}`)
+	recorder := httptest.NewRecorder()
+	Login(auth)(recorder, request)
+
+	cookie := recorder.Header().Get("Set-Cookie")
+	if cookie == "" {
+		t.Fatal("login não gravou cookie de refresh")
+	}
+	if strings.Contains(cookie, "Path=/api/v1/auth/") {
+		t.Fatalf("path restrito quebra o refresh via proxy: %q", cookie)
+	}
+	if !strings.Contains(cookie, "Path=/api") {
+		t.Fatalf("cookie sem Path=/api: %q", cookie)
+	}
+	if !strings.Contains(cookie, "HttpOnly") || !strings.Contains(cookie, "Secure") {
+		t.Fatalf("cookie sem proteções: %q", cookie)
+	}
+}

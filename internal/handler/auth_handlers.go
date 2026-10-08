@@ -290,11 +290,13 @@ func withUser(request *http.Request, user *service.User) context.Context {
 	return context.WithValue(request.Context(), userContextKey{}, user)
 }
 
+const refreshCookiePath = "/api"
+
 func setRefreshCookie(writer http.ResponseWriter, raw string) {
 	http.SetCookie(writer, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    raw,
-		Path:     "/api/v1/auth/",
+		Path:     refreshCookiePath,
 		MaxAge:   refreshCookieMaxAge,
 		HttpOnly: true,
 		Secure:   true,
@@ -306,7 +308,7 @@ func clearRefreshCookie(writer http.ResponseWriter) {
 	http.SetCookie(writer, &http.Cookie{
 		Name:     refreshCookieName,
 		Value:    "",
-		Path:     "/api/v1/auth/",
+		Path:     refreshCookiePath,
 		MaxAge:   -1,
 		HttpOnly: true,
 		Secure:   true,
