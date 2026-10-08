@@ -273,6 +273,52 @@ Job inexistente:
 404 Not Found
 ```
 
+### Formato do `report` de scrape
+
+O `GET /api/v1/scrape/status/{id}` devolve o relatório no formato
+`ScrapeReport` consumido pelo painel admin (`scrapers[]` + `csvs[]`):
+
+```json
+{
+  "job_id": "e840f07fb7db5b74c18cbfae95942f4d",
+  "status": "complete",
+  "started_at": "2026-10-08T02:00:03.713390+00:00",
+  "finished_at": "2026-10-08T02:11:51.086188+00:00",
+  "report": {
+    "started_at": "2026-10-08T02:11:16.000000+00:00",
+    "finished_at": "2026-10-08T02:11:41.000000+00:00",
+    "scrapers": [
+      {
+        "nome": "scraper_brasilquecorre.py",
+        "ok": true,
+        "duration_s": 4.5,
+        "detail": "...",
+        "stderr": ""
+      }
+    ],
+    "csvs": [
+      {
+        "fonte": "brasilquecorre",
+        "ok": true,
+        "total": 2,
+        "duplicados": 0,
+        "sem_preco": 0,
+        "eventos_passados": 0,
+        "sem_imagem": 0,
+        "erros_encoding": 0,
+        "erros": []
+      }
+    ]
+  },
+  "error": null
+}
+```
+
+Regras: `detail` limitado a 8000 e `stderr` a 2000 caracteres, `erros`
+limitado a 10 itens (mesmos truncamentos do fluxo anterior). Quando o
+relatório estruturado não existe (jobs antigos), `report` contém
+`scrapers: []` e `csvs: []` e o modal exibe as seções vazias.
+
 ### GET /api/v1/scrape/last-run
 
 Requer chave de scrapers.
