@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/marcosarl1/Circuito-API/internal/service"
 )
+
+var errTriggerDown = errors.New("trigger down")
 
 func TestHealthReturnsOK(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -417,7 +420,7 @@ func TestRunScrapeAcceptsFirstJob(t *testing.T) {
 	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
 	recorder := httptest.NewRecorder()
 
-	RunScrape(store, func() string { return "job-1" })(recorder, request)
+	RunScrape(store, func() string { return "job-1" }, nil)(recorder, request)
 
 	if recorder.Code != http.StatusAccepted {
 		t.Fatalf("expected 202, got %d; body=%s", recorder.Code, recorder.Body.String())
@@ -434,7 +437,7 @@ func TestRunScrapeAcceptsFirstJob(t *testing.T) {
 
 func TestRunScrapeRejectsConcurrentJob(t *testing.T) {
 	store := newFakeJobStore()
-	handler := RunScrape(store, func() string { return "job-1" })
+	handler := RunScrape(store, func() string { return "job-1" }, nil)
 
 	first := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
 	firstRecorder := httptest.NewRecorder()
@@ -455,7 +458,7 @@ func TestRunScrapeWithoutStore(t *testing.T) {
 	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
 	recorder := httptest.NewRecorder()
 
-	RunScrape(nil, func() string { return "job-1" })(recorder, request)
+	RunScrape(nil, func() string { return "job-1" }, nil)(recorder, request)
 
 	if recorder.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503, got %d", recorder.Code)
@@ -547,5 +550,55 @@ func TestSyncBucketStatusReportsIdle(t *testing.T) {
 	}
 	if response["in_progress"] {
 		t.Fatal("expected in_progress=false")
+	}
+}
+
+func TestRunScrapeTriggersWorker(t *testing.T) {
+	store := newFakeJobStore()
+	triggered := false
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	recorder := httptest.NewRecorder()
+
+	RunScrape(store, func() string { return "job-1" }, func(context.Context) error {
+		triggered = true
+		return nil
+	})(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d; body=%s", recorder.Code, recorder.Body.String())
+	}
+	if !triggered {
+		t.Fatal("expected worker trigger to run")
+	}
+}
+
+func TestRunScrapeAbandonsJobWhenTriggerFails(t *testing.T) {
+	store := newFakeJobStore()
+
+	request := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	recorder := httptest.NewRecorder()
+
+	RunScrape(store, func() string { return "job-1" }, func(context.Context) error {
+		return errTriggerDown
+	})(recorder, request)
+
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503, got %d; body=%s", recorder.Code, recorder.Body.String())
+	}
+
+	job, err := store.GetScrapeJob(context.Background(), "job-1")
+	if err != nil {
+		t.Fatalf("job should still exist: %v", err)
+	}
+	if job.Status != service.JobStatusFailed {
+		t.Fatalf("abandoned job should be failed, got %q", job.Status)
+	}
+
+	second := newTestRequest(http.MethodPost, "/api/v1/scrape/run", "")
+	secondRecorder := httptest.NewRecorder()
+	RunScrape(store, func() string { return "job-2" }, nil)(secondRecorder, second)
+	if secondRecorder.Code != http.StatusAccepted {
+		t.Fatalf("slot should be free after abandon, got %d", secondRecorder.Code)
 	}
 }

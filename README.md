@@ -51,6 +51,10 @@ nunca copiado para a imagem Docker).
 | `AWS_ACCESS_KEY_ID` | — | Credencial AWS |
 | `AWS_SECRET_ACCESS_KEY` | — | Credencial AWS |
 | `BUCKET_JSON_KEY` | `eventos_real.json` | Objeto do sync |
+| `SCRAPER_TRIGGER_ENABLED` | (vazio) | `true` liga o disparo automático do worker |
+| `AZURE_SUBSCRIPTION_ID` | — | Subscription do job (só com trigger ligado) |
+| `AZURE_RESOURCE_GROUP` | `rg-circuitoapp` | Resource group do job |
+| `SCRAPER_JOB_NAME` | `correpb-scraper` | Nome do Container Apps Job |
 
 ## Desenvolvimento local
 

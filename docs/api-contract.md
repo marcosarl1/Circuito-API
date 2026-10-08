@@ -246,6 +246,25 @@ Se já existir um job em andamento (`queued` ou `running`):
 }
 ```
 
+Quando o disparo automático está ligado (`SCRAPER_TRIGGER_ENABLED=true`),
+o `POST` inicia a execução no Azure sozinho: o frontend continua só
+aguardando o polling, sem passo manual. Se o disparo falhar, o job é
+abandonado (`failed`, slot liberado) e a resposta é:
+
+```http
+503 Service Unavailable
+```
+
+```json
+{
+  "detail": "Serviço de scraping indisponível"
+}
+```
+
+Pré-requisitos do disparo (executados uma vez, fora da API): identidade
+gerenciada no app da API + role `Container Apps Jobs Operator` no job.
+Sem isso (desenvolvimento local), o comportamento é só-enfileirar.
+
 A aquisição é atômica: duas réplicas não iniciam duas execuções. Limite de 5 chamadas por minuto por cliente (`429`).
 
 O job fica persistido no MongoDB (`scrape_jobs`) com status `queued` até o worker Python existir e conduzi-lo para `running` → `complete`/`failed`.

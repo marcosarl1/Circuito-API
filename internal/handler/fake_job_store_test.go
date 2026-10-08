@@ -38,3 +38,14 @@ func (store *fakeJobStore) GetScrapeJob(_ context.Context, jobID string) (*servi
 func (store *fakeJobStore) GetLastScrapeRun(_ context.Context) (*string, error) {
 	return store.lastRun, nil
 }
+
+func (store *fakeJobStore) AbandonScrapeJob(_ context.Context, jobID, reason string) error {
+	job, exists := store.jobs[jobID]
+	if !exists {
+		return repository.ErrScrapeJobNotFound
+	}
+	job.Status = service.JobStatusFailed
+	job.Error = &reason
+	store.locked = false
+	return nil
+}

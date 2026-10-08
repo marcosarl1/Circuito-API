@@ -71,3 +71,28 @@ func (store *Store) GetLastScrapeRun(requestContext context.Context) (*string, e
 	}
 	return state.FinishedAt, nil
 }
+
+// AbandonScrapeJob marks a job as failed and frees its slot. It is used
+// when the job was accepted but its execution could not start, so the
+// next run is not blocked by a phantom queued job.
+func (store *Store) AbandonScrapeJob(requestContext context.Context, jobID, reason string) error {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	result, err := store.scrapeJobs().UpdateOne(
+		requestContext,
+		bson.M{"_id": jobID},
+		bson.M{"$set": bson.M{
+			"status":      service.JobStatusFailed,
+			"error":       reason,
+			"finished_at": service.NowISO(),
+			"active":      false,
+		}},
+	)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return ErrScrapeJobNotFound
+	}
+	return nil
+}

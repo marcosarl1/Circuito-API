@@ -49,4 +49,9 @@ type JobStore interface {
 
 	GetLastScrapeRun(
 		requestContext context.Context) (*string, error)
+
+	AbandonScrapeJob(
+		requestContext context.Context,
+		jobID string,
+		reason string) error
 }

@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/marcosarl1/Circuito-API/internal/azure"
 	"github.com/marcosarl1/Circuito-API/internal/config"
 	"github.com/marcosarl1/Circuito-API/internal/handler"
 	"github.com/marcosarl1/Circuito-API/internal/middleware"
@@ -18,6 +19,26 @@ import (
 )
 
 const mongoShutdownTimeout = 5 * time.Second
+
+// buildScrapeTrigger wires the automatic worker start. It returns nil when
+// disabled (local dev, tests) so POST /scrape/run keeps queue-only behavior.
+func buildScrapeTrigger(appConfig config.Config) func(context.Context) error {
+	trigger := appConfig.ScraperTrigger
+	if !trigger.Enabled {
+		return nil
+	}
+	starter := &azure.JobStarter{
+		SubscriptionID:   trigger.SubscriptionID,
+		ResourceGroup:    trigger.ResourceGroup,
+		JobName:          trigger.JobName,
+		APIVersion:       "2023-05-01",
+		ManagementURL:    "https://management.azure.com",
+		IdentityEndpoint: os.Getenv("IDENTITY_ENDPOINT"),
+		IdentityHeader:   os.Getenv("IDENTITY_HEADER"),
+		HTTPClient:       &http.Client{Timeout: 30 * time.Second},
+	}
+	return starter.Start
+}
 
 func main() {
 	appConfig, err := config.Load()
@@ -60,7 +81,7 @@ func main() {
 	router.HandleFunc("DELETE /api/v1/eventos/{id}", requireAPIKey(handler.DeleteEvent(eventStore)))
 
 	requireScrapersKey := handler.RequireAPIKey(appConfig.ScrapersKey)
-	scrapeRun := middleware.RateLimit(5, time.Minute)(handler.RunScrape(jobStore, service.NewScrapeJobID))
+	scrapeRun := middleware.RateLimit(5, time.Minute)(handler.RunScrape(jobStore, service.NewScrapeJobID, buildScrapeTrigger(appConfig)))
 	router.HandleFunc("POST /api/v1/scrape/run", requireScrapersKey(scrapeRun.ServeHTTP))
 	router.HandleFunc("GET /api/v1/scrape/status/{id}", requireScrapersKey(handler.ScrapeStatus(jobStore)))
 	router.HandleFunc("GET /api/v1/scrape/last-run", requireScrapersKey(handler.ScrapeLastRun(jobStore)))

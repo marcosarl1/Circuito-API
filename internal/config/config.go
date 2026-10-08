@@ -21,6 +21,17 @@ type Config struct {
 	AWSAccessKeyID  string
 	AWSSecretKey    string
 	BucketJSONKey   string
+	ScraperTrigger  ScraperTriggerConfig
+}
+
+// ScraperTriggerConfig controls the automatic start of the worker
+// execution after POST /scrape/run. Disabled by default: with no managed
+// identity (local dev, tests) the API keeps queue-only behavior.
+type ScraperTriggerConfig struct {
+	Enabled        bool
+	SubscriptionID string
+	ResourceGroup  string
+	JobName        string
 }
 
 func getenv(key, def string) string {
@@ -56,5 +67,11 @@ func Load() (Config, error) {
 		AWSAccessKeyID:  os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		BucketJSONKey:   getenv("BUCKET_JSON_KEY", "eventos_real.json"),
+		ScraperTrigger: ScraperTriggerConfig{
+			Enabled:        os.Getenv("SCRAPER_TRIGGER_ENABLED") == "true",
+			SubscriptionID: os.Getenv("AZURE_SUBSCRIPTION_ID"),
+			ResourceGroup:  getenv("AZURE_RESOURCE_GROUP", "rg-circuitoapp"),
+			JobName:        getenv("SCRAPER_JOB_NAME", "correpb-scraper"),
+		},
 	}, nil
 }
