@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 func TestLoginRequestValidation(t *testing.T) {
@@ -52,9 +54,10 @@ func TestPasswordPolicy(t *testing.T) {
 }
 
 func TestPublicUserHidesHash(t *testing.T) {
-	user := User{ID: "1", Username: "admin", PasswordHash: "hash-secreto", CreatedAt: time.Now()}
+	oid := bson.NewObjectID()
+	user := User{ID: oid, Username: "admin", PasswordHash: "hash-secreto", CreatedAt: time.Now()}
 	public := user.Public()
-	if public.ID != "1" || public.Username != "admin" {
+	if public.ID != oid.Hex() || public.Username != "admin" {
 		t.Fatalf("projection lost fields: %+v", public)
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -23,13 +24,15 @@ const RefreshTokenTTL = 30 * 24 * time.Hour
 const RoleAdmin = "ADMIN"
 
 // User is an admin account. The password never leaves the database hashed.
+// ID is a native ObjectID (what MongoDB generates); on the wire it is
+// always the hex string, never an object.
 type User struct {
-	ID           string    `bson:"_id" json:"id"`
-	Username     string    `bson:"username" json:"username"`
-	PasswordHash string    `bson:"password_hash" json:"-"`
-	Role         string    `bson:"role" json:"role"`
-	Disabled     bool      `bson:"disabled" json:"-"`
-	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
+	ID           bson.ObjectID `bson:"_id" json:"-"`
+	Username     string        `bson:"username" json:"username"`
+	PasswordHash string        `bson:"password_hash" json:"-"`
+	Role         string        `bson:"role" json:"role"`
+	Disabled     bool          `bson:"disabled" json:"-"`
+	CreatedAt    time.Time     `bson:"created_at" json:"created_at"`
 }
 
 // RefreshToken is stored hashed: a database leak alone never yields
@@ -39,16 +42,6 @@ type RefreshToken struct {
 	UserID    string    `bson:"user_id"`
 	ExpiresAt time.Time `bson:"expires_at"`
 	CreatedAt time.Time `bson:"created_at"`
-}
-
-// NewUserID generates a random 32-character hexadecimal account id,
-// unguessable and URL-safe.
-func NewUserID() string {
-	bytes := make([]byte, 16)
-	if _, err := rand.Read(bytes); err != nil {
-		return hex.EncodeToString([]byte(time.Now().UTC().Format(time.RFC3339Nano)))[:32]
-	}
-	return hex.EncodeToString(bytes)
 }
 
 // HashPassword hashes with bcrypt (cost 12: slow for attackers, fast enough

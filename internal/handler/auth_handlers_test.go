@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/marcosarl1/Circuito-API/internal/service"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 var testClock = time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)
@@ -24,7 +25,7 @@ func seedTestUser(t *testing.T, store *fakeUserStore) *service.User {
 		t.Fatalf("hash: %v", err)
 	}
 	user, err := store.CreateUser(t.Context(), service.User{
-		ID:        "user-1",
+		ID:        bson.NewObjectID(),
 		Username:  "admincircuito",
 		Role:      service.RoleAdmin,
 		CreatedAt: testClock,
@@ -222,12 +223,13 @@ func TestUserOrKeyRejectsNonAdmin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash: %v", err)
 	}
-	if _, err := store.CreateUser(t.Context(), service.User{
-		ID: "user-reader", Username: "leitor", Role: "READER", CreatedAt: testClock,
-	}); err != nil {
+	created, err := store.CreateUser(t.Context(), service.User{
+		ID: bson.NewObjectID(), Username: "leitor", Role: "READER", CreatedAt: testClock,
+	})
+	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	reader, _ := store.FindUserByID(t.Context(), "user-reader")
+	reader, _ := store.FindUserByID(t.Context(), created.ID.Hex())
 	reader.PasswordHash = hash
 	auth := testAuthConfig(store)
 	tokens := loginTokens(t, auth, "leitor", "senha-leitura-123")

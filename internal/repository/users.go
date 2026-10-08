@@ -60,10 +60,14 @@ func (store *Store) CountUsers(requestContext context.Context) (int64, error) {
 	return store.users().CountDocuments(requestContext, bson.M{})
 }
 
-// CreateUser inserts a user with an already-hashed password.
+// CreateUser inserts a user with an already-hashed password, assigning an
+// ObjectID when the caller did not set one.
 func (store *Store) CreateUser(requestContext context.Context, user service.User) (*service.User, error) {
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
+	if user.ID == bson.NilObjectID {
+		user.ID = bson.NewObjectID()
+	}
 	if _, err := store.users().InsertOne(requestContext, user); err != nil {
 		if mongo.IsDuplicateKeyError(err) {
 			return nil, ErrUserExists

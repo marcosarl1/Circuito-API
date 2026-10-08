@@ -31,7 +31,7 @@ func (store *fakeUserStore) CreateUser(_ context.Context, user service.User) (*s
 		return nil, repository.ErrUserExists
 	}
 	stored := user
-	store.users[user.ID] = &stored
+	store.users[user.ID.Hex()] = &stored
 	store.byUsername[user.Username] = &stored
 	return &stored, nil
 }

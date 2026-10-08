@@ -79,7 +79,7 @@ func Login(auth AuthConfig) http.HandlerFunc {
 // issueTokens creates a fresh access + refresh pair and persists the hash.
 func issueTokens(requestContext context.Context, auth AuthConfig, user *service.User) (service.AuthTokens, error) {
 	now := auth.now()
-	access, err := service.IssueAccessToken(auth.JWTSecret, user.ID, now)
+	access, err := service.IssueAccessToken(auth.JWTSecret, user.ID.Hex(), now)
 	if err != nil {
 		return service.AuthTokens{}, err
 	}
@@ -89,7 +89,7 @@ func issueTokens(requestContext context.Context, auth AuthConfig, user *service.
 	}
 	err = auth.UserStore.StoreRefreshToken(requestContext, service.RefreshToken{
 		Hash:      hash,
-		UserID:    user.ID,
+		UserID:    user.ID.Hex(),
 		ExpiresAt: now.Add(service.RefreshTokenTTL),
 		CreatedAt: now,
 	})
@@ -200,7 +200,7 @@ func ChangePassword(auth AuthConfig) http.HandlerFunc {
 			writeError(writer, http.StatusBadRequest, err.Error())
 			return
 		}
-		stored, err := auth.UserStore.FindUserByID(request.Context(), user.ID)
+		stored, err := auth.UserStore.FindUserByID(request.Context(), user.ID.Hex())
 		if err != nil || service.VerifyPassword(stored.PasswordHash, input.CurrentPassword) != nil {
 			writeError(writer, http.StatusUnauthorized, "Credenciais inválidas")
 			return
@@ -210,7 +210,7 @@ func ChangePassword(auth AuthConfig) http.HandlerFunc {
 			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}
-		if err := auth.UserStore.UpdateUserPassword(request.Context(), user.ID, hash); err != nil {
+		if err := auth.UserStore.UpdateUserPassword(request.Context(), user.ID.Hex(), hash); err != nil {
 			writeError(writer, http.StatusInternalServerError, "Erro interno")
 			return
 		}

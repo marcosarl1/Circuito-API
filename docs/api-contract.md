@@ -55,10 +55,11 @@ Erros: credencial errada `401 {"detail":"Credenciais inválidas"}`
 refresh inválido/usado `401 {"detail":"Sessão inválida"}`.
 
 Contas vivem na collection `users` (`username` único, `password_hash`
-bcrypt, `role`). Não há seed automático: a conta admin é criada
-manualmente uma vez (ver README). Rotas de escrita exigem JWT de conta
-`ADMIN` (qualquer outra role recebe `403`); rotas self-service (`/me`,
-troca de senha) aceitam qualquer conta válida.
+bcrypt, `role`). O `_id` é ObjectID nativo (hex de 24 chars no JSON).
+Não há seed automático: a conta admin é criada manualmente uma vez
+(ver README). Rotas de escrita exigem JWT de conta `ADMIN` (qualquer outra
+role recebe `403`); rotas self-service (`/me`, troca de senha) aceitam
+qualquer conta válida.
 
 ### Chaves de serviço (X-API-Key)
 

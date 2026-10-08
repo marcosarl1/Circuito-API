@@ -79,7 +79,7 @@ type PublicUser struct {
 
 // Public projects a User to its response-safe shape.
 func (user User) Public() PublicUser {
-	return PublicUser{ID: user.ID, Username: user.Username, Role: user.Role, CreatedAt: user.CreatedAt}
+	return PublicUser{ID: user.ID.Hex(), Username: user.Username, Role: user.Role, CreatedAt: user.CreatedAt}
 }
 
 func validUsername(raw string) bool {
