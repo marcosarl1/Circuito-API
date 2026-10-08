@@ -63,10 +63,21 @@ go run ./cmd/api
 ```bash
 gofmt -l .
 go vet ./...
-go test ./... -count=1
+go test ./... -count=1          # unitários (rápidos, sem Docker)
 go test -race ./... -count=1
-go build ./...
 ```
+
+Integração e performance sobem a stack real sozinhas (Mongo em
+container + binário da API, sem mocks, sem servidor remoto).
+Requer apenas Docker em execução:
+
+```bash
+go test -tags integration ./tests/integration/ -v -count=1
+go test -tags perf ./tests/performance/ -v -count=1
+```
+
+O CI executa as três suítes; o deploy valida a revisão nova com
+smoke test (`/health`, `/ready` e forma da listagem).
 
 ## Docker
 

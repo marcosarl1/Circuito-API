@@ -122,3 +122,34 @@ jobs:
               AWS_BUCKET_NAME="$AWS_BUCKET_NAME"
           echo "Deployed tag: ${IMAGE_TAG}"
           echo "Deployed digest: ${IMAGE_DIGEST}"
+
+      - name: Smoke test
+        env:
+          APP_NAME: ${{ vars.AZURE_CONTAINERAPP_NAME }}
+          RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: |
+          FQDN=$(az containerapp show \
+            -n "${APP_NAME:-circuito-api}" \
+            -g "${RESOURCE_GROUP:-rg-circuitoapp}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Probing https://${FQDN}"
+
+          for attempt in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' "https://${FQDN}/health")" = "200" ]; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo "::error::/health não respondeu 200 após o deploy"
+              exit 1
+            fi
+            sleep 20
+          done
+
+          test "$(curl -s "https://${FQDN}/ready")" != "" || exit 1
+          curl -s "https://${FQDN}/api/v1/eventos?page=1&size=1" | python3 -c "
+          import json,sys
+          body = json.load(sys.stdin)
+          assert isinstance(body.get('eventos'), list), body
+          assert isinstance(body.get('total'), int), body
+          print('smoke ok:', body['total'], 'eventos')
+          "
