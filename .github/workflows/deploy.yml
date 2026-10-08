@@ -52,6 +52,7 @@ jobs:
           MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
           API_KEY: ${{ secrets.API_KEY }}
           SCRAPERS_API_KEY: ${{ secrets.SCRAPERS_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -62,7 +63,7 @@ jobs:
         run: |
           err=0
           for v in MONGODB_URI MONGODB_DB_NAME MONGODB_COLLECTION \
-                   API_KEY SCRAPERS_API_KEY CORS_ORIGINS AWS_REGION \
+                   API_KEY SCRAPERS_API_KEY JWT_SECRET CORS_ORIGINS AWS_REGION \
                    AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_BUCKET_NAME \
                    GHCR_USERNAME GHCR_PAT; do
             if [ -z "${!v:-}" ]; then
@@ -97,6 +98,7 @@ jobs:
           MONGODB_COLLECTION: ${{ secrets.MONGODB_COLLECTION }}
           API_KEY: ${{ secrets.API_KEY }}
           SCRAPERS_API_KEY: ${{ secrets.SCRAPERS_API_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -115,6 +117,7 @@ jobs:
               API_PORT="8181" \
               API_KEY="$API_KEY" \
               SCRAPERS_API_KEY="$SCRAPERS_API_KEY" \
+              JWT_SECRET="$JWT_SECRET" \
               CORS_ORIGINS="$CORS_ORIGINS" \
               AWS_REGION="$AWS_REGION" \
               AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \

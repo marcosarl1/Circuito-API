@@ -93,4 +93,9 @@ type UserStore interface {
 	RevokeRefreshToken(
 		requestContext context.Context,
 		hash string) error
+
+	UpdateUserPassword(
+		requestContext context.Context,
+		userID string,
+		hash string) error
 }

@@ -74,3 +74,12 @@ func (store *fakeUserStore) RevokeRefreshToken(_ context.Context, hash string) e
 	delete(store.tokens, hash)
 	return nil
 }
+
+func (store *fakeUserStore) UpdateUserPassword(_ context.Context, userID, hash string) error {
+	user, exists := store.users[userID]
+	if !exists {
+		return repository.ErrUserNotFound
+	}
+	user.PasswordHash = hash
+	return nil
+}

@@ -21,6 +21,9 @@ type Config struct {
 	AWSAccessKeyID  string
 	AWSSecretKey    string
 	BucketJSONKey   string
+	JWTSecret       string
+	AdminEmail      string
+	AdminPassword   string
 	ScraperTrigger  ScraperTriggerConfig
 }
 
@@ -67,6 +70,9 @@ func Load() (Config, error) {
 		AWSAccessKeyID:  os.Getenv("AWS_ACCESS_KEY_ID"),
 		AWSSecretKey:    os.Getenv("AWS_SECRET_ACCESS_KEY"),
 		BucketJSONKey:   getenv("BUCKET_JSON_KEY", "eventos_real.json"),
+		JWTSecret:       os.Getenv("JWT_SECRET"),
+		AdminEmail:      os.Getenv("ADMIN_EMAIL"),
+		AdminPassword:   os.Getenv("ADMIN_PASSWORD"),
 		ScraperTrigger: ScraperTriggerConfig{
 			Enabled:        os.Getenv("SCRAPER_TRIGGER_ENABLED") == "true",
 			SubscriptionID: os.Getenv("AZURE_SUBSCRIPTION_ID"),

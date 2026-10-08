@@ -73,12 +73,13 @@ func ValidateNewPassword(password string) error {
 type PublicUser struct {
 	ID        string    `json:"id"`
 	Email     string    `json:"email"`
+	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // Public projects a User to its response-safe shape.
 func (user User) Public() PublicUser {
-	return PublicUser{ID: user.ID, Email: user.Email, CreatedAt: user.CreatedAt}
+	return PublicUser{ID: user.ID, Email: user.Email, Role: user.Role, CreatedAt: user.CreatedAt}
 }
 
 func validEmail(raw string) bool {

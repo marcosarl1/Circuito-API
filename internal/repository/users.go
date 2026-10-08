@@ -139,3 +139,25 @@ func (store *Store) RevokeRefreshToken(requestContext context.Context, hash stri
 	_, err := store.refreshTokens().DeleteOne(requestContext, bson.M{"_id": hash})
 	return err
 }
+
+// UpdateUserPassword replaces the (already hashed) password.
+func (store *Store) UpdateUserPassword(requestContext context.Context, userID, hash string) error {
+	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
+	defer cancel()
+	objectID, err := objectIDFromHex(userID)
+	if err != nil {
+		return ErrUserNotFound
+	}
+	result, err := store.users().UpdateOne(
+		requestContext,
+		bson.M{"_id": objectID},
+		bson.M{"$set": bson.M{"password_hash": hash}},
+	)
+	if err != nil {
+		return err
+	}
+	if result.MatchedCount == 0 {
+		return ErrUserNotFound
+	}
+	return nil
+}

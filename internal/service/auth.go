@@ -18,11 +18,16 @@ const AccessTokenTTL = 15 * time.Minute
 // RefreshTokenTTL bounds the session lifetime without re-login.
 const RefreshTokenTTL = 30 * 24 * time.Hour
 
+// RoleAdmin is the only role today: full write access. The field exists
+// so future read-only roles need no migration.
+const RoleAdmin = "ADMIN"
+
 // User is an admin account. The password never leaves the database hashed.
 type User struct {
 	ID           string    `bson:"_id" json:"id"`
 	Email        string    `bson:"email" json:"email"`
 	PasswordHash string    `bson:"password_hash" json:"-"`
+	Role         string    `bson:"role" json:"role"`
 	Disabled     bool      `bson:"disabled" json:"-"`
 	CreatedAt    time.Time `bson:"created_at" json:"created_at"`
 }
@@ -34,6 +39,16 @@ type RefreshToken struct {
 	UserID    string    `bson:"user_id"`
 	ExpiresAt time.Time `bson:"expires_at"`
 	CreatedAt time.Time `bson:"created_at"`
+}
+
+// NewUserID generates a random 32-character hexadecimal account id,
+// unguessable and URL-safe.
+func NewUserID() string {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return hex.EncodeToString([]byte(time.Now().UTC().Format(time.RFC3339Nano)))[:32]
+	}
+	return hex.EncodeToString(bytes)
 }
 
 // HashPassword hashes with bcrypt (cost 12: slow for attackers, fast enough

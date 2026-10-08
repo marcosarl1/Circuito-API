@@ -33,13 +33,38 @@ Regras:
 
 ## Autenticação
 
-As rotas de escrita exigem o header:
+Rotas de leitura e health não exigem autenticação.
 
-```http
-X-API-Key: <chave-secreta>
-```
+### Usuários (JWT)
 
-As rotas de leitura e health não exigem autenticação.
+Fluxo para o painel admin, com usuário e senha como única credencial:
+
+1. `POST /api/v1/auth/login` `{"email","password"}` → `200`
+   `{access_token, refresh_token, expires_in, email}` + cookie
+   `refresh_token` (HttpOnly, regra 5/min por cliente).
+2. Requisições autenticadas enviam `Authorization: Bearer <access_token>`
+   (15 min de validade).
+3. `POST /api/v1/auth/refresh` (cookie ou `{"refresh_token"}`) → novo par;
+   o token apresentado é consumido (reuso sempre 401).
+4. `POST /api/v1/auth/logout` → `204`, revoga e limpa o cookie.
+5. `GET /api/v1/auth/me` → conta no formato público.
+6. `PATCH /api/v1/auth/password` → troca com senha atual (mínimo 8).
+
+Erros: credencial errada `401 {"detail":"Credenciais inválidas"}`
+(mesma mensagem para usuário inexistente); conta desabilitada `403`;
+refresh inválido/usado `401 {"detail":"Sessão inválida"}`.
+
+Contas vivem na collection `users` com `role` (`ADMIN` para escrita total;
+o seed inicial cria o admin via `ADMIN_EMAIL`/`ADMIN_PASSWORD` quando não
+há usuários). Rotas de escrita exigem JWT de conta `ADMIN` (qualquer outra
+role recebe `403`); rotas self-service (`/me`, troca de senha) aceitam
+qualquer conta válida.
+
+### Chaves de serviço (X-API-Key)
+
+Rotas de escrita aceitam JWT **ou** `X-API-Key` durante a transição do
+frontend (remover o caminho da chave depois). Rotas de scrape exigem
+somente a chave de scrapers (integrações máquina-máquina).
 
 ## Endpoints
 
