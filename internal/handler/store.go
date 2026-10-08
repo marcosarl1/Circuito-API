@@ -3,7 +3,15 @@ package handler
 import (
 	"context"
 
+	"github.com/marcosarl1/Circuito-API/internal/repository"
 	"github.com/marcosarl1/Circuito-API/internal/service"
+)
+
+// Compile-time proofs that the Mongo store satisfies the handler contracts.
+var (
+	_ EventStore = (*repository.Store)(nil)
+	_ JobStore   = (*repository.Store)(nil)
+	_ UserStore  = (*repository.Store)(nil)
 )
 
 type EventStore interface {
@@ -54,4 +62,35 @@ type JobStore interface {
 		requestContext context.Context,
 		jobID string,
 		reason string) error
+}
+
+// UserStore abstracts admin account and session persistence so auth
+// handlers stay testable without MongoDB. *repository.Store implements it.
+type UserStore interface {
+	CountUsers(
+		requestContext context.Context) (int64, error)
+
+	CreateUser(
+		requestContext context.Context,
+		user service.User) (*service.User, error)
+
+	FindUserByEmail(
+		requestContext context.Context,
+		email string) (*service.User, error)
+
+	FindUserByID(
+		requestContext context.Context,
+		userID string) (*service.User, error)
+
+	StoreRefreshToken(
+		requestContext context.Context,
+		token service.RefreshToken) error
+
+	TakeRefreshToken(
+		requestContext context.Context,
+		hash string) (*service.RefreshToken, error)
+
+	RevokeRefreshToken(
+		requestContext context.Context,
+		hash string) error
 }
