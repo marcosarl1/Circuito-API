@@ -57,7 +57,7 @@ func Login(auth AuthConfig) http.HandlerFunc {
 			writeError(writer, http.StatusBadRequest, "Credenciais inválidas")
 			return
 		}
-		user, err := auth.UserStore.FindUserByEmail(request.Context(), strings.TrimSpace(input.Email))
+		user, err := auth.UserStore.FindUserByUsername(request.Context(), strings.TrimSpace(input.Username))
 		if err != nil || service.VerifyPassword(user.PasswordHash, input.Password) != nil {
 			writeError(writer, http.StatusUnauthorized, "Credenciais inválidas")
 			return
@@ -100,7 +100,7 @@ func issueTokens(requestContext context.Context, auth AuthConfig, user *service.
 		AccessToken:  access,
 		RefreshToken: rawRefresh,
 		ExpiresIn:    int64(service.AccessTokenTTL / time.Second),
-		Email:        user.Email,
+		Username:     user.Username,
 	}, nil
 }
 

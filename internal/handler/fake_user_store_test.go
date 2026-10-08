@@ -9,16 +9,16 @@ import (
 )
 
 type fakeUserStore struct {
-	users   map[string]*service.User
-	byEmail map[string]*service.User
-	tokens  map[string]*service.RefreshToken
+	users      map[string]*service.User
+	byUsername map[string]*service.User
+	tokens     map[string]*service.RefreshToken
 }
 
 func newFakeUserStore() *fakeUserStore {
 	return &fakeUserStore{
-		users:   map[string]*service.User{},
-		byEmail: map[string]*service.User{},
-		tokens:  map[string]*service.RefreshToken{},
+		users:      map[string]*service.User{},
+		byUsername: map[string]*service.User{},
+		tokens:     map[string]*service.RefreshToken{},
 	}
 }
 
@@ -27,17 +27,17 @@ func (store *fakeUserStore) CountUsers(_ context.Context) (int64, error) {
 }
 
 func (store *fakeUserStore) CreateUser(_ context.Context, user service.User) (*service.User, error) {
-	if _, exists := store.byEmail[user.Email]; exists {
+	if _, exists := store.byUsername[user.Username]; exists {
 		return nil, repository.ErrUserExists
 	}
 	stored := user
 	store.users[user.ID] = &stored
-	store.byEmail[user.Email] = &stored
+	store.byUsername[user.Username] = &stored
 	return &stored, nil
 }
 
-func (store *fakeUserStore) FindUserByEmail(_ context.Context, email string) (*service.User, error) {
-	user, exists := store.byEmail[email]
+func (store *fakeUserStore) FindUserByUsername(_ context.Context, username string) (*service.User, error) {
+	user, exists := store.byUsername[username]
 	if !exists {
 		return nil, repository.ErrUserNotFound
 	}

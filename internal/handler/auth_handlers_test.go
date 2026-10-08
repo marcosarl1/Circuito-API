@@ -25,7 +25,7 @@ func seedTestUser(t *testing.T, store *fakeUserStore) *service.User {
 	}
 	user, err := store.CreateUser(t.Context(), service.User{
 		ID:        "user-1",
-		Email:     "admin@example.com",
+		Username:  "admincircuito",
 		Role:      service.RoleAdmin,
 		CreatedAt: testClock,
 	})
@@ -36,10 +36,10 @@ func seedTestUser(t *testing.T, store *fakeUserStore) *service.User {
 	return user
 }
 
-func loginTokens(t *testing.T, auth AuthConfig, email, password string) service.AuthTokens {
+func loginTokens(t *testing.T, auth AuthConfig, username, password string) service.AuthTokens {
 	t.Helper()
 	request := newTestRequest(http.MethodPost, "/api/v1/auth/login",
-		`{"email":"`+email+`","password":"`+password+`"}`)
+		`{"username":"`+username+`","password":"`+password+`"}`)
 	recorder := httptest.NewRecorder()
 	Login(auth)(recorder, request)
 	if recorder.Code != http.StatusOK {
@@ -61,7 +61,7 @@ func TestLoginIssuesTokensAndCookie(t *testing.T) {
 	auth := testAuthConfig(store)
 
 	request := newTestRequest(http.MethodPost, "/api/v1/auth/login",
-		`{"email":"admin@example.com","password":"senha-correta-123"}`)
+		`{"username":"admincircuito","password":"senha-correta-123"}`)
 	recorder := httptest.NewRecorder()
 	Login(auth)(recorder, request)
 
@@ -82,9 +82,9 @@ func TestLoginRejectsWithoutOracle(t *testing.T) {
 	auth := testAuthConfig(store)
 
 	for name, body := range map[string]string{
-		"unknown user": `{"email":"ninguem@example.com","password":"senha-correta-123"}`,
-		"wrong pass":   `{"email":"admin@example.com","password":"errada"}`,
-		"bad json":     `{"email":"admin@example.com"`,
+		"unknown user": `{"username":"ninguem","password":"senha-correta-123"}`,
+		"wrong pass":   `{"username":"admincircuito","password":"errada"}`,
+		"bad json":     `{"username":"admincircuito"`,
 	} {
 		request := newTestRequest(http.MethodPost, "/api/v1/auth/login", body)
 		recorder := httptest.NewRecorder()
@@ -94,10 +94,10 @@ func TestLoginRejectsWithoutOracle(t *testing.T) {
 		}
 	}
 
-	disabled, _ := store.FindUserByEmail(t.Context(), "admin@example.com")
+	disabled, _ := store.FindUserByUsername(t.Context(), "admincircuito")
 	disabled.Disabled = true
 	request := newTestRequest(http.MethodPost, "/api/v1/auth/login",
-		`{"email":"admin@example.com","password":"senha-correta-123"}`)
+		`{"username":"admincircuito","password":"senha-correta-123"}`)
 	recorder := httptest.NewRecorder()
 	Login(auth)(recorder, request)
 	if recorder.Code != http.StatusForbidden {
@@ -109,7 +109,7 @@ func TestRefreshRotatesAndRejectsReuse(t *testing.T) {
 	store := newFakeUserStore()
 	seedTestUser(t, store)
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "admin@example.com", "senha-correta-123")
+	tokens := loginTokens(t, auth, "admincircuito", "senha-correta-123")
 
 	second := newTestRequest(http.MethodPost, "/api/v1/auth/refresh",
 		`{"refresh_token":"`+tokens.RefreshToken+`"}`)
@@ -139,7 +139,7 @@ func TestLogoutRevokesSession(t *testing.T) {
 	store := newFakeUserStore()
 	seedTestUser(t, store)
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "admin@example.com", "senha-correta-123")
+	tokens := loginTokens(t, auth, "admincircuito", "senha-correta-123")
 
 	request := newTestRequest(http.MethodPost, "/api/v1/auth/logout",
 		`{"refresh_token":"`+tokens.RefreshToken+`"}`)
@@ -165,7 +165,7 @@ func TestMeRequiresBearer(t *testing.T) {
 	store := newFakeUserStore()
 	seedTestUser(t, store)
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "admin@example.com", "senha-correta-123")
+	tokens := loginTokens(t, auth, "admincircuito", "senha-correta-123")
 
 	anonymous := newTestRequest(http.MethodGet, "/api/v1/auth/me", "")
 	anonymousRecorder := httptest.NewRecorder()
@@ -187,7 +187,7 @@ func TestUserOrKeyAcceptsBoth(t *testing.T) {
 	store := newFakeUserStore()
 	seedTestUser(t, store)
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "admin@example.com", "senha-correta-123")
+	tokens := loginTokens(t, auth, "admincircuito", "senha-correta-123")
 	guard := RequireUserOrKey(auth, "service-key")
 
 	next := func(writer http.ResponseWriter, _ *http.Request) { writer.WriteHeader(http.StatusNoContent) }
@@ -223,14 +223,14 @@ func TestUserOrKeyRejectsNonAdmin(t *testing.T) {
 		t.Fatalf("hash: %v", err)
 	}
 	if _, err := store.CreateUser(t.Context(), service.User{
-		ID: "user-reader", Email: "leitor@example.com", Role: "READER", CreatedAt: testClock,
+		ID: "user-reader", Username: "leitor", Role: "READER", CreatedAt: testClock,
 	}); err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	reader, _ := store.FindUserByID(t.Context(), "user-reader")
 	reader.PasswordHash = hash
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "leitor@example.com", "senha-leitura-123")
+	tokens := loginTokens(t, auth, "leitor", "senha-leitura-123")
 
 	guard := RequireUserOrKey(auth, "service-key")
 	next := func(writer http.ResponseWriter, _ *http.Request) { writer.WriteHeader(http.StatusNoContent) }
@@ -248,7 +248,7 @@ func TestChangePassword(t *testing.T) {
 	store := newFakeUserStore()
 	seedTestUser(t, store)
 	auth := testAuthConfig(store)
-	tokens := loginTokens(t, auth, "admin@example.com", "senha-correta-123")
+	tokens := loginTokens(t, auth, "admincircuito", "senha-correta-123")
 
 	change := newTestRequest(http.MethodPatch, "/api/v1/auth/password",
 		`{"current_password":"senha-correta-123","new_password":"nova-senha-456"}`)
@@ -260,14 +260,14 @@ func TestChangePassword(t *testing.T) {
 	}
 
 	old := newTestRequest(http.MethodPost, "/api/v1/auth/login",
-		`{"email":"admin@example.com","password":"senha-correta-123"}`)
+		`{"username":"admincircuito","password":"senha-correta-123"}`)
 	oldRecorder := httptest.NewRecorder()
 	Login(auth)(oldRecorder, old)
 	if oldRecorder.Code != http.StatusUnauthorized {
 		t.Fatalf("senha antiga deveria falhar, obtido %d", oldRecorder.Code)
 	}
 
-	loginTokens(t, auth, "admin@example.com", "nova-senha-456")
+	loginTokens(t, auth, "admincircuito", "nova-senha-456")
 
 	weak := newTestRequest(http.MethodPatch, "/api/v1/auth/password",
 		`{"current_password":"nova-senha-456","new_password":"curta"}`)

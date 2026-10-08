@@ -74,9 +74,9 @@ type UserStore interface {
 		requestContext context.Context,
 		user service.User) (*service.User, error)
 
-	FindUserByEmail(
+	FindUserByUsername(
 		requestContext context.Context,
-		email string) (*service.User, error)
+		username string) (*service.User, error)
 
 	FindUserByID(
 		requestContext context.Context,

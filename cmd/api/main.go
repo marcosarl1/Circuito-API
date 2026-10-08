@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -20,45 +19,6 @@ import (
 )
 
 const mongoShutdownTimeout = 5 * time.Second
-
-// seedAdmin creates the first admin account from env when the users
-// collection is empty. It runs once: existing deployments ignore the vars.
-// The password must satisfy the same policy as user-chosen passwords;
-// rotate ADMIN_PASSWORD right after the first login.
-func seedAdmin(requestContext context.Context, store *repository.Store, appConfig config.Config) {
-	if appConfig.AdminEmail == "" || appConfig.AdminPassword == "" {
-		return
-	}
-	count, err := store.CountUsers(requestContext)
-	if err != nil {
-		slog.Error("admin seed failed: cannot count users", "err", err)
-		return
-	}
-	if count > 0 {
-		return
-	}
-	if err := service.ValidateNewPassword(appConfig.AdminPassword); err != nil {
-		slog.Error("admin seed failed: weak ADMIN_PASSWORD", "err", err)
-		return
-	}
-	hash, err := service.HashPassword(appConfig.AdminPassword)
-	if err != nil {
-		slog.Error("admin seed failed", "err", err)
-		return
-	}
-	user := service.User{
-		ID:        service.NewUserID(),
-		Email:     strings.ToLower(strings.TrimSpace(appConfig.AdminEmail)),
-		Role:      service.RoleAdmin,
-		CreatedAt: time.Now().UTC(),
-	}
-	user.PasswordHash = hash
-	if _, err := store.CreateUser(requestContext, user); err != nil {
-		slog.Error("admin seed failed", "err", err)
-		return
-	}
-	slog.Info("admin account seeded", "email", user.Email)
-}
 
 // buildScrapeTrigger wires the automatic worker start. It returns nil when
 // disabled (local dev, tests) so POST /scrape/run keeps queue-only behavior.
@@ -103,7 +63,6 @@ func main() {
 		if err := store.EnsureAuthIndexes(appContext); err != nil {
 			slog.Warn("auth indexes failed", "err", err)
 		}
-		seedAdmin(appContext, store, appConfig)
 	}
 	var eventStore handler.EventStore
 	var jobStore handler.JobStore

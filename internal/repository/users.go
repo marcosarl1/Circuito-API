@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	// ErrUserExists is returned when the email is already registered.
+	// ErrUserExists is returned when the username is already registered.
 	ErrUserExists = errors.New("user already exists")
 	// ErrUserNotFound covers unknown users without distinguishing causes.
 	ErrUserNotFound = errors.New("user not found")
@@ -40,7 +40,7 @@ func (store *Store) EnsureAuthIndexes(requestContext context.Context) error {
 	defer cancel()
 
 	if _, err := store.users().Indexes().CreateOne(requestContext, mongo.IndexModel{
-		Keys:    bson.D{{Key: "email", Value: 1}},
+		Keys:    bson.D{{Key: "username", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}); err != nil {
 		return err
@@ -73,12 +73,12 @@ func (store *Store) CreateUser(requestContext context.Context, user service.User
 	return &user, nil
 }
 
-// FindUserByEmail loads by the unique email (login path).
-func (store *Store) FindUserByEmail(requestContext context.Context, email string) (*service.User, error) {
+// FindUserByUsername loads by the unique username (login path).
+func (store *Store) FindUserByUsername(requestContext context.Context, username string) (*service.User, error) {
 	requestContext, cancel := context.WithTimeout(requestContext, 5*time.Second)
 	defer cancel()
 	var user service.User
-	if err := store.users().FindOne(requestContext, bson.M{"email": email}).Decode(&user); err != nil {
+	if err := store.users().FindOne(requestContext, bson.M{"username": username}).Decode(&user); err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, ErrUserNotFound
 		}

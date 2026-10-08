@@ -39,8 +39,8 @@ Rotas de leitura e health não exigem autenticação.
 
 Fluxo para o painel admin, com usuário e senha como única credencial:
 
-1. `POST /api/v1/auth/login` `{"email","password"}` → `200`
-   `{access_token, refresh_token, expires_in, email}` + cookie
+1. `POST /api/v1/auth/login` `{"username","password"}` → `200`
+   `{access_token, refresh_token, expires_in, username}` + cookie
    `refresh_token` (HttpOnly, regra 5/min por cliente).
 2. Requisições autenticadas enviam `Authorization: Bearer <access_token>`
    (15 min de validade).
@@ -54,11 +54,11 @@ Erros: credencial errada `401 {"detail":"Credenciais inválidas"}`
 (mesma mensagem para usuário inexistente); conta desabilitada `403`;
 refresh inválido/usado `401 {"detail":"Sessão inválida"}`.
 
-Contas vivem na collection `users` com `role` (`ADMIN` para escrita total;
-o seed inicial cria o admin via `ADMIN_EMAIL`/`ADMIN_PASSWORD` quando não
-há usuários). Rotas de escrita exigem JWT de conta `ADMIN` (qualquer outra
-role recebe `403`); rotas self-service (`/me`, troca de senha) aceitam
-qualquer conta válida.
+Contas vivem na collection `users` (`username` único, `password_hash`
+bcrypt, `role`). Não há seed automático: a conta admin é criada
+manualmente uma vez (ver README). Rotas de escrita exigem JWT de conta
+`ADMIN` (qualquer outra role recebe `403`); rotas self-service (`/me`,
+troca de senha) aceitam qualquer conta válida.
 
 ### Chaves de serviço (X-API-Key)
 

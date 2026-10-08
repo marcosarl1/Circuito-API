@@ -25,7 +25,7 @@ const RoleAdmin = "ADMIN"
 // User is an admin account. The password never leaves the database hashed.
 type User struct {
 	ID           string    `bson:"_id" json:"id"`
-	Email        string    `bson:"email" json:"email"`
+	Username     string    `bson:"username" json:"username"`
 	PasswordHash string    `bson:"password_hash" json:"-"`
 	Role         string    `bson:"role" json:"role"`
 	Disabled     bool      `bson:"disabled" json:"-"`

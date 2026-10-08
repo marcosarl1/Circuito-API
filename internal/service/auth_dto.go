@@ -13,21 +13,21 @@ type AuthTokens struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int64  `json:"expires_in"`
-	Email        string `json:"email"`
+	Username     string `json:"username"`
 }
 
 // LoginRequest carries the only human credential this API accepts:
-// email + password.
+// username + password. No email, no OAuth, no magic links.
 type LoginRequest struct {
-	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
 // Validate rejects malformed input before any database or bcrypt work,
 // so attackers cannot use the endpoint as a timing oracle for hashing.
 func (request LoginRequest) Validate() error {
-	if !validEmail(request.Email) {
-		return fmt.Errorf("invalid email")
+	if !validUsername(request.Username) {
+		return fmt.Errorf("invalid username")
 	}
 	if request.Password == "" {
 		return fmt.Errorf("password is required")
@@ -72,24 +72,20 @@ func ValidateNewPassword(password string) error {
 // can never leak because they do not exist on this type.
 type PublicUser struct {
 	ID        string    `json:"id"`
-	Email     string    `json:"email"`
+	Username  string    `json:"username"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // Public projects a User to its response-safe shape.
 func (user User) Public() PublicUser {
-	return PublicUser{ID: user.ID, Email: user.Email, Role: user.Role, CreatedAt: user.CreatedAt}
+	return PublicUser{ID: user.ID, Username: user.Username, Role: user.Role, CreatedAt: user.CreatedAt}
 }
 
-func validEmail(raw string) bool {
-	email := strings.TrimSpace(raw)
-	if email == "" || strings.Contains(email, " ") {
+func validUsername(raw string) bool {
+	username := strings.TrimSpace(raw)
+	if len(username) < 3 || len(username) > 64 {
 		return false
 	}
-	local, domain, found := strings.Cut(email, "@")
-	if !found || local == "" || domain == "" || strings.Contains(domain, "@") {
-		return false
-	}
-	return true
+	return !strings.ContainsAny(username, " \t\n")
 }

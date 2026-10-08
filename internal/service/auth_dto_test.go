@@ -7,17 +7,17 @@ import (
 )
 
 func TestLoginRequestValidation(t *testing.T) {
-	valid := LoginRequest{Email: "admin@example.com", Password: "segredo-123"}
+	valid := LoginRequest{Username: "admincircuito", Password: "segredo-123"}
 	if err := valid.Validate(); err != nil {
 		t.Fatalf("valid rejected: %v", err)
 	}
 
 	invalid := []LoginRequest{
-		{Email: "", Password: "segredo-123"},
-		{Email: "sem-arroba", Password: "segredo-123"},
-		{Email: "a@b@c.com", Password: "segredo-123"},
-		{Email: "admin@example.com", Password: ""},
-		{Email: "  ", Password: "x"},
+		{Username: "", Password: "segredo-123"},
+		{Username: "ab", Password: "segredo-123"},
+		{Username: "com espaço", Password: "segredo-123"},
+		{Username: "admincircuito", Password: ""},
+		{Username: "  ", Password: "x"},
 	}
 	for index, request := range invalid {
 		if err := request.Validate(); err == nil {
@@ -52,9 +52,9 @@ func TestPasswordPolicy(t *testing.T) {
 }
 
 func TestPublicUserHidesHash(t *testing.T) {
-	user := User{ID: "1", Email: "a@b.c", PasswordHash: "hash-secreto", CreatedAt: time.Now()}
+	user := User{ID: "1", Username: "admin", PasswordHash: "hash-secreto", CreatedAt: time.Now()}
 	public := user.Public()
-	if public.ID != "1" || public.Email != "a@b.c" {
+	if public.ID != "1" || public.Username != "admin" {
 		t.Fatalf("projection lost fields: %+v", public)
 	}
 }

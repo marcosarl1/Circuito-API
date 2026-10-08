@@ -46,7 +46,6 @@ nunca copiado para a imagem Docker).
 | `API_KEY` | — | Chave das rotas de escrita (transição; serviços) |
 | `SCRAPERS_API_KEY` | — | Chave das rotas de scrape |
 | `JWT_SECRET` | — | Segredo HMAC dos tokens (32+ bytes aleatórios) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | — | Seed do primeiro admin |
 | `CORS_ORIGINS` | `*` | Origens permitidas (CSV) |
 | `AWS_BUCKET_NAME` | — | Bucket do sync |
 | `AWS_REGION` | `us-east-1` | Região AWS |
